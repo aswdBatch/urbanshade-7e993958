@@ -84,9 +84,14 @@ const Index = () => {
         setInRecoveryMode(true);
         toast.info("Entering Recovery Mode...");
       }
-      // DEL key to access BIOS (before boot)
-      if ((e.key === "Delete" || e.key === "Del") && !booted && biosComplete) {
+      // DEL key to access BIOS (before boot or during reboot)
+      if ((e.key === "Delete" || e.key === "Del") && !booted && !inRecoveryMode) {
         e.preventDefault();
+        // If rebooting, interrupt and go to BIOS
+        if (rebooting) {
+          setRebooting(false);
+          setBlackScreen(false);
+        }
         setShowingBiosTransition(true);
         setTimeout(() => {
           setBiosComplete(false);
@@ -144,7 +149,7 @@ const Index = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [loggedIn, lockdownMode, crashed, shuttingDown, rebooting]);
+  }, [loggedIn, lockdownMode, crashed, shuttingDown, rebooting, booted, biosComplete, inRecoveryMode]);
 
   // Check for first time tour
   useEffect(() => {

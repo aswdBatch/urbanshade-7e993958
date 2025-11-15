@@ -60,12 +60,14 @@ export const FacilityPlanner = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0, roomX: 0, roomY: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    toast.info("Facility Planner - BETA", {
-      description: "This feature is in beta. Some features may be unstable.",
-      duration: 5000,
-    });
-  }, []);
+  const [betaDialogOpen, setBetaDialogOpen] = useState(() => {
+    return !localStorage.getItem('facility_planner_beta_acknowledged');
+  });
+
+  const handleBetaAcknowledge = () => {
+    localStorage.setItem('facility_planner_beta_acknowledged', 'true');
+    setBetaDialogOpen(false);
+  };
 
   useEffect(() => {
     saveState('facility_planner_rooms', rooms);
@@ -86,7 +88,8 @@ export const FacilityPlanner = () => {
   };
 
   const handlePanStart = (e: React.MouseEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+    // Allow right-click drag or middle mouse button or space+drag for panning
+    if (e.button === 2 || e.button === 1 || (e.button === 0 && e.shiftKey)) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       e.preventDefault();
@@ -516,6 +519,40 @@ export const FacilityPlanner = () => {
                 <strong>Beta Features:</strong> Custom room shapes, advanced door placement, and multi-section rooms are currently in development.
               </p>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={betaDialogOpen} onOpenChange={setBetaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Grid3x3 className="w-5 h-5 text-primary" />
+              Facility Planner - Beta Version
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Welcome to the Facility Planner! This feature is currently in beta and some features may be experimental or under development.
+            </p>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-semibold">Available Features:</p>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                <li>Room placement and customization</li>
+                <li>Custom room shapes with grid editor</li>
+                <li>Hallway generation tools</li>
+                <li>Camera panning (Right-click or Shift+Drag)</li>
+                <li>Zoom controls</li>
+              </ul>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              We appreciate your patience as we continue to improve this tool!
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button onClick={handleBetaAcknowledge}>
+              Got it!
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

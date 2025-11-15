@@ -234,11 +234,26 @@ export const BiosScreen = ({ onExit }: BiosScreenProps) => {
           <div className="text-sm">{customApps.filter(a => a.enabled).length} Active</div>
           <div className="text-xs text-muted-foreground mt-1">{customApps.length} Total</div>
         </div>
+
+        <div className="glass-panel p-4">
+          <div className="text-xs text-muted-foreground mb-2">BIOS DATE</div>
+          <div className="text-sm">{new Date().toLocaleDateString()}</div>
+          <div className="text-xs text-muted-foreground mt-1">Underwater Systems</div>
+        </div>
+
+        <div className="glass-panel p-4">
+          <div className="text-xs text-muted-foreground mb-2">BOOT MODE</div>
+          <div className="text-sm">{fastBoot ? 'Fast Boot' : 'Normal'}</div>
+          <div className="text-xs text-muted-foreground mt-1">UEFI Compatible</div>
+        </div>
       </div>
 
       <div className="glass-panel p-4 mt-6">
         <div className="text-xs text-yellow-500">
           ⚠ Use arrow keys or click to navigate. Changes are saved automatically.
+        </div>
+        <div className="text-xs text-muted-foreground mt-2">
+          Press F10 to save and exit • ESC to exit without saving
         </div>
       </div>
     </div>

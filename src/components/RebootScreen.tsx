@@ -9,18 +9,18 @@ export const RebootScreen = ({ onComplete }: RebootScreenProps) => {
   const [stage, setStage] = useState<"commands" | "black">("commands");
 
   const rebootMessages = [
-    { text: "[  OK  ] Stopping all processes", duration: 800 },
-    { text: "[  OK  ] Unmounting file systems", duration: 1200 },
-    { text: "[  OK  ] Stopping containment systems", duration: 1500 },
-    { text: "[  OK  ] Stopping security services", duration: 900 },
-    { text: "[  OK  ] Stopping network services", duration: 1100 },
-    { text: "[  OK  ] Flushing system cache", duration: 700 },
-    { text: "[  OK  ] Reached target Reboot", duration: 600 },
-    { text: "", duration: 300 },
-    { text: "[ INFO ] System restart initiated", duration: 800 },
-    { text: "[ INFO ] Preparing for reboot...", duration: 1000 },
-    { text: "", duration: 500 },
-    { text: "Reboot in progress...", duration: 1500 },
+    { text: "[  OK  ] Stopping all processes", duration: 400 },
+    { text: "[  OK  ] Unmounting file systems", duration: 500 },
+    { text: "[  OK  ] Stopping containment systems", duration: 600 },
+    { text: "[  OK  ] Stopping security services", duration: 400 },
+    { text: "[  OK  ] Stopping network services", duration: 500 },
+    { text: "[  OK  ] Flushing system cache", duration: 300 },
+    { text: "[  OK  ] Reached target Reboot", duration: 300 },
+    { text: "", duration: 200 },
+    { text: "[ INFO ] System restart initiated", duration: 400 },
+    { text: "[ INFO ] Preparing for reboot...", duration: 500 },
+    { text: "", duration: 200 },
+    { text: "Reboot in progress...", duration: 600 },
   ];
 
   useEffect(() => {
@@ -41,8 +41,8 @@ export const RebootScreen = ({ onComplete }: RebootScreenProps) => {
       } else {
         setTimeout(() => {
           setStage("black");
-          setTimeout(onComplete, 3000);
-        }, 1000);
+          setTimeout(onComplete, 1500);
+        }, 500);
       }
     };
 
@@ -62,6 +62,9 @@ export const RebootScreen = ({ onComplete }: RebootScreenProps) => {
               {msg}
             </div>
           ))}
+        </div>
+        <div className="text-xs text-muted-foreground mt-8 text-center animate-pulse">
+          Press DEL to enter BIOS Setup
         </div>
       </div>
     </div>
