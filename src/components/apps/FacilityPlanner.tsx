@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { Grid3x3, Plus, Trash2, Move, Save, FolderOpen, Settings as SettingsIcon, Route, Pen, Eraser, Square, ZoomIn, ZoomOut, Maximize2, Link, Check, X } from "lucide-react";
+import { Grid3x3, Plus, Trash2, Move, Save, FolderOpen, Settings as SettingsIcon, Route, Pen, ZoomIn, ZoomOut, Maximize2, Eye, Edit3, Check, X, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { saveState, loadState } from "@/lib/persistence";
-import { RoomEditor } from "./RoomEditor";
 import { RoomProperties } from "./RoomProperties";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { getRoomColor, getRoomBackgroundColor } from "@/lib/roomColors";
 
 interface PlannerRoom {
@@ -22,9 +22,7 @@ interface PlannerRoom {
   sections: any[];
   doors: any[];
   connections: string[];
-  gridShape?: boolean[][];
-  internalWalls?: any[];
-  subRooms?: any[];
+  gridShape?: { row: number; col: number }[];
 }
 
 interface DrawingPath {
@@ -41,24 +39,26 @@ interface HallwaySettings {
 
 export const FacilityPlanner = () => {
   const [rooms, setRooms] = useState<PlannerRoom[]>(() => loadState('facility_planner_rooms', []));
-  const [editingRoom, setEditingRoom] = useState<PlannerRoom | null>(null);
-  const [hallwayMode, setHallwayMode] = useState(false);
-  const [hallwaySegments, setHallwaySegments] = useState<any[]>([]);
-  const [currentHallwayPoint, setCurrentHallwayPoint] = useState<{ x: number; y: number } | null>(null);
-  const [clickCount, setClickCount] = useState<{ [key: string]: number }>({});
+  const [mode, setMode] = useState<"facility" | "room-editor" | "hallway">("facility");
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [roomEditorGrid, setRoomEditorGrid] = useState<boolean[][]>([]);
+  const [hallwayPoints, setHallwayPoints] = useState<{ x: number; y: number }[]>([]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [snapToGrid, setSnapToGrid] = useState(() => loadState('facility_planner_snap', true));
   const [showConnections, setShowConnections] = useState(() => loadState('facility_planner_connections', true));
-  const [selectedRoomForConnect, setSelectedRoomForConnect] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [placingRoomType, setPlacingRoomType] = useState<string | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [draggingRoom, setDraggingRoom] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0, roomX: 0, roomY: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
+  
+  const [hallwaySettings, setHallwaySettings] = useState<HallwaySettings>(() => 
+    loadState('facility_planner_hallway_settings', { autoGenerate: false, hallwayWidth: 40 })
+  );
 
   const [betaDialogOpen, setBetaDialogOpen] = useState(() => {
     return !localStorage.getItem('facility_planner_beta_acknowledged');
@@ -258,32 +258,42 @@ export const FacilityPlanner = () => {
   };
 
   const completeHallway = () => {
-    if (hallwaySegments.length === 0) return toast.error("Need at least 1 segment");
-    
-    hallwaySegments.forEach((segment, i) => {
-      const from = segment.from;
-      const to = segment.to;
+    if (hallwayPoints.length < 2) {
+      toast.error("Need at least 2 points to create a hallway");
+      return;
+    }
+
+    for (let i = 0; i < hallwayPoints.length - 1; i++) {
+      const from = hallwayPoints[i];
+      const to = hallwayPoints[i + 1];
       
-      if (!to) return;
+      const isHorizontal = Math.abs(to.x - from.x) > Math.abs(to.y - from.y);
       
-      setRooms(prev => [...prev, {
+      const newRoom: PlannerRoom = {
         id: `hallway-${Date.now()}-${i}`,
-        name: "Hallway",
+        name: `Hallway ${i + 1}`,
         type: "corridor",
         x: Math.min(from.x, to.x),
         y: Math.min(from.y, to.y),
-        width: Math.max(Math.abs(to.x - from.x), 40),
-        height: Math.max(Math.abs(to.y - from.y), 40),
+        width: isHorizontal ? Math.abs(to.x - from.x) : hallwaySettings.hallwayWidth,
+        height: isHorizontal ? hallwaySettings.hallwayWidth : Math.abs(to.y - from.y),
         sections: [],
         doors: [],
         connections: []
-      }]);
-    });
+      };
+      
+      setRooms(prev => [...prev, newRoom]);
+    }
     
-    setHallwayMode(false);
-    setHallwaySegments([]);
-    setCurrentHallwayPoint(null);
-    toast.success(`${hallwaySegments.length} hallway segment(s) created`);
+    setMode("facility");
+    setHallwayPoints([]);
+    toast.success(`Hallway created with ${hallwayPoints.length - 1} segment(s)`);
+  };
+
+  const cancelHallway = () => {
+    setHallwayPoints([]);
+    setMode("facility");
+    toast.info("Hallway creation cancelled");
   };
 
   const addRoom = (type: string) => {
