@@ -517,8 +517,8 @@ export const FacilityPlanner = () => {
         <div className="absolute bottom-4 right-4 w-64">
           <RoomProperties
             room={rooms.find(r => r.id === selectedRoomId)!}
-            onUpdate={(updated) => {
-              setRooms(rooms.map(r => r.id === selectedRoomId ? updated : r));
+            onChange={(updates) => {
+              setRooms(rooms.map(r => r.id === selectedRoomId ? { ...r, ...updates } : r));
             }}
             onClose={() => setSelectedRoomId(null)}
           />
