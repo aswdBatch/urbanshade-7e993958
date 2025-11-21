@@ -157,31 +157,34 @@ export const FacilityPlanner = () => {
       }
     } else if (mode === "room-editor") {
       return;
-    } else if (placingRoomType) {
-      const snappedX = snapValue(x);
-      const snappedY = snapValue(y);
-      const template = ROOM_TEMPLATES[roomTemplate];
-      const newRoom: PlannerRoom = {
-        id: Date.now().toString(),
-        name: `${placingRoomType} ${rooms.length + 1}`,
-        type: placingRoomType,
-        x: snappedX,
-        y: snappedY,
-        width: template.width,
-        height: template.height,
-        sections: [],
-        doors: [],
-        connections: [],
-      };
-      setRooms([...rooms, newRoom]);
-      toast.success(`${placingRoomType} placed`);
     } else {
+      // Check if clicking on an existing room first
       const clickedRoom = rooms.find(room => 
         x >= room.x && x <= room.x + room.width &&
         y >= room.y && y <= room.y + room.height
       );
+      
       if (clickedRoom) {
         setSelectedRoomId(clickedRoom.id);
+      } else if (placingRoomType) {
+        // Only place new room if clicking on empty space
+        const snappedX = snapValue(x);
+        const snappedY = snapValue(y);
+        const template = ROOM_TEMPLATES[roomTemplate];
+        const newRoom: PlannerRoom = {
+          id: Date.now().toString(),
+          name: `${placingRoomType} ${rooms.length + 1}`,
+          type: placingRoomType,
+          x: snappedX,
+          y: snappedY,
+          width: template.width,
+          height: template.height,
+          sections: [],
+          doors: [],
+          connections: [],
+        };
+        setRooms([...rooms, newRoom]);
+        toast.success(`${placingRoomType} placed`);
       } else {
         setSelectedRoomId(null);
       }
