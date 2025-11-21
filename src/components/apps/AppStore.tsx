@@ -112,64 +112,81 @@ export const AppStore = ({ onInstall }: { onInstall?: (appId: string) => void })
   const isInstalled = (appId: string) => installedApps.includes(appId);
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <div className="border-b border-border p-4 space-y-4">
+      <div className="border-b border-border bg-gradient-to-r from-primary/5 via-transparent to-primary/5 p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <Package className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold">App Store</h1>
-          <Badge variant="secondary" className="ml-auto">
-            {AVAILABLE_APPS.length} Apps Available
+          <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+            <Package className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">Urbanshade App Store</h1>
+            <p className="text-sm text-muted-foreground">Browse and install applications</p>
+          </div>
+          <Badge variant="secondary" className="px-3 py-1.5">
+            {AVAILABLE_APPS.length} Apps
           </Badge>
         </div>
         
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input
             placeholder="Search applications..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-11 border-2 focus:border-primary transition-all"
           />
         </div>
 
-        <div className="flex gap-2 flex-wrap">
-          {categories.map(cat => (
-            <Button
-              key={cat}
-              variant={selectedCategory === cat ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </Button>
-          ))}
-        </div>
+        <ScrollArea className="w-full">
+          <div className="flex gap-2 pb-2">
+            {categories.map(cat => (
+              <Button
+                key={cat}
+                variant={selectedCategory === cat ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(cat)}
+                className="transition-all hover:scale-105"
+              >
+                {cat}
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
       </div>
 
       {/* App List */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
+        <div className="p-6 space-y-4">
           {filteredApps.map(app => (
             <div
               key={app.id}
-              className="border border-border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+              className="group border border-border rounded-xl p-5 hover:shadow-lg hover:border-primary/50 transition-all duration-300 bg-card hover:scale-[1.01]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-lg">{app.name}</h3>
-                    <Badge variant="outline">{app.category}</Badge>
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{app.name}</h3>
+                    <Badge variant="secondary" className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      {app.category}
+                    </Badge>
                   </div>
                   
-                  <p className="text-sm text-muted-foreground mb-3">{app.description}</p>
+                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{app.description}</p>
                   
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>v{app.version}</span>
-                    <span>{app.size}</span>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                      <span>{app.rating}</span>
+                  <div className="flex items-center gap-6 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Version:</span>
+                      <span className="font-mono font-medium">{app.version}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Size:</span>
+                      <span className="font-mono font-medium">{app.size}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                      <span className="font-medium">{app.rating}</span>
+                      <span className="text-muted-foreground">/5.0</span>
                     </div>
                   </div>
                 </div>
@@ -177,21 +194,25 @@ export const AppStore = ({ onInstall }: { onInstall?: (appId: string) => void })
                 <div className="flex gap-2 shrink-0">
                   {isInstalled(app.id) ? (
                     <>
-                      <Button variant="outline" size="sm" disabled>
-                        <Check className="w-4 h-4 mr-2" />
+                      <Button variant="outline" size="sm" disabled className="gap-2">
+                        <Check className="w-4 h-4" />
                         Installed
                       </Button>
                       <Button 
                         variant="destructive" 
                         size="sm"
                         onClick={() => handleUninstall(app.id, app.name)}
+                        className="hover:scale-105 transition-transform"
                       >
                         Uninstall
                       </Button>
                     </>
                   ) : (
-                    <Button onClick={() => handleInstall(app.id, app.name)}>
-                      <Download className="w-4 h-4 mr-2" />
+                    <Button 
+                      onClick={() => handleInstall(app.id, app.name)}
+                      className="gap-2 hover:scale-105 transition-transform"
+                    >
+                      <Download className="w-4 h-4" />
                       Download
                     </Button>
                   )}
@@ -201,9 +222,10 @@ export const AppStore = ({ onInstall }: { onInstall?: (appId: string) => void })
           ))}
 
           {filteredApps.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No apps found matching your search</p>
+            <div className="text-center py-16 text-muted-foreground">
+              <Package className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium mb-1">No apps found</p>
+              <p className="text-sm">Try adjusting your search or filters</p>
             </div>
           )}
         </div>

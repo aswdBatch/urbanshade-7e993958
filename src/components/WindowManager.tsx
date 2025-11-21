@@ -39,6 +39,7 @@ import { Settings } from "./apps/Settings";
 import { VideoPlayer } from "./apps/VideoPlayer";
 import { ImageViewer } from "./apps/ImageViewer";
 import { PdfReader } from "./apps/PdfReader";
+import { FileReader } from "./apps/FileReader";
 
 interface WindowData {
   id: string;

@@ -142,26 +142,46 @@ export const FileExplorer = ({ onLog, onVirusDetected }: FileExplorerProps) => {
   return (
     <div className="h-full flex bg-background">
       {/* Sidebar */}
-      <div className="w-48 border-r bg-muted/30 flex flex-col">
-        <div className="p-3 border-b">
-          <h3 className="font-bold text-sm text-muted-foreground">QUICK ACCESS</h3>
+      <div className="w-56 border-r bg-gradient-to-b from-muted/50 to-muted/30 flex flex-col">
+        <div className="p-4 border-b">
+          <h3 className="font-bold flex items-center gap-2">
+            <Home className="w-4 h-4 text-primary" />
+            Quick Access
+          </h3>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="p-2 space-y-0.5">
             {quickAccessFolders.map((folder) => (
               <button
                 key={folder.path}
                 onClick={() => navigateToPath(folder.path)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
                   currentPath === folder.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted'
+                    ? 'bg-primary text-primary-foreground shadow-lg scale-[1.02]'
+                    : 'hover:bg-muted hover:translate-x-1'
                 }`}
               >
-                <Folder className="w-4 h-4" />
-                {folder.name}
+                <Folder className={`w-4 h-4 ${currentPath === folder.path ? '' : 'text-primary'}`} />
+                <span className="font-medium">{folder.name}</span>
               </button>
             ))}
+          </div>
+          
+          <div className="p-3 mt-4 border-t">
+            <div className="text-xs font-bold text-muted-foreground mb-2">STORAGE</div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Used:</span>
+                <span className="font-mono">42.8 GB</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary" style={{ width: '65%' }} />
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Free:</span>
+                <span className="font-mono">23.2 GB</span>
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </div>
