@@ -20,7 +20,6 @@ export const Desktop = ({
   onReboot, 
   onShutdown,
   onCriticalKill, 
-  onOpenAdminPanel, 
   onLockdown, 
   onEnterBios, 
   onUpdate 
@@ -29,7 +28,6 @@ export const Desktop = ({
   onReboot: () => void; 
   onShutdown?: () => void;
   onCriticalKill: (processName: string, type?: "kernel" | "virus" | "bluescreen" | "memory" | "corruption" | "overload") => void; 
-  onOpenAdminPanel?: () => void; 
   onLockdown?: (protocolName: string) => void; 
   onEnterBios?: () => void; 
   onUpdate?: () => void; 
@@ -670,7 +668,6 @@ export const Desktop = ({
         allWindows={windows}
         onCloseWindow={closeWindow}
         onCriticalKill={onCriticalKill}
-        onOpenAdminPanel={onOpenAdminPanel}
         onLockdown={onLockdown}
         onUpdate={onUpdate}
       />

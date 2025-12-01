@@ -8,10 +8,9 @@ interface CommandHistory {
 
 interface TerminalProps {
   onCrash?: (crashType: "kernel" | "virus" | "bluescreen" | "memory" | "corruption" | "overload") => void;
-  onOpenAdminPanel?: () => void;
 }
 
-export const Terminal = ({ onCrash, onOpenAdminPanel }: TerminalProps = {}) => {
+export const Terminal = ({ onCrash }: TerminalProps = {}) => {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<CommandHistory[]>([
     { input: "", output: "URBANSHADE SECURE TERMINAL v3.2.1\nType 'help' for available commands.\n" }
@@ -549,7 +548,7 @@ Use for testing purposes only.`
       setHistory(prev => [...prev, { input: cmd, output }]);
       setInput("");
       setTimeout(() => {
-        onOpenAdminPanel?.();
+        window.open('/admin', '_blank');
       }, 1000);
       return;
     } else if (cmd.startsWith("crash ")) {

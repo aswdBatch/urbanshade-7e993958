@@ -56,7 +56,6 @@ interface WindowManagerProps {
   allWindows: WindowData[];
   onCloseWindow: (id: string) => void;
   onCriticalKill: (processName: string, type?: "kernel" | "virus" | "bluescreen" | "memory" | "corruption" | "overload") => void;
-  onOpenAdminPanel?: () => void;
   onLockdown?: (protocolName: string) => void;
   onUpdate?: () => void;
 }
@@ -69,7 +68,7 @@ interface WindowData {
 
 import { UrbanshadeInstaller } from "./apps/UrbanshadeInstaller";
 
-export const WindowManager = ({ windows, onClose, onFocus, onMinimize, allWindows, onCloseWindow, onCriticalKill, onOpenAdminPanel, onLockdown, onUpdate }: WindowManagerProps) => {
+export const WindowManager = ({ windows, onClose, onFocus, onMinimize, allWindows, onCloseWindow, onCriticalKill, onLockdown, onUpdate }: WindowManagerProps) => {
   const getAppContent = (appId: string) => {
     switch (appId) {
       case "app-store":
@@ -92,7 +91,7 @@ export const WindowManager = ({ windows, onClose, onFocus, onMinimize, allWindow
       case "network":
         return <NetworkScanner />;
       case "terminal":
-        return <Terminal onCrash={(type) => onCriticalKill("terminal.exe", type)} onOpenAdminPanel={onOpenAdminPanel} />;
+        return <Terminal onCrash={(type) => onCriticalKill("terminal.exe", type)} />;
       case "task-manager":
         return <TaskManager windows={allWindows} onCloseWindow={onCloseWindow} onCriticalKill={onCriticalKill} />;
       case "messages":

@@ -113,6 +113,16 @@ export const StartMenu = ({ open, apps, onClose, onOpenApp, onReboot, onShutdown
             </button>
 
             <div className="flex gap-2">
+              <a
+                href="/admin"
+                target="_blank"
+                className="w-10 h-10 rounded-lg hover:bg-muted/50 flex items-center justify-center transition-all group"
+                title="Admin Panel"
+                onClick={onClose}
+              >
+                <Shield className="w-4 h-4 text-yellow-500 group-hover:text-yellow-400 transition-colors" />
+              </a>
+              
               <button 
                 onClick={() => {
                   onShutdown();

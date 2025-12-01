@@ -8,7 +8,6 @@ import { ShutdownScreen } from "@/components/ShutdownScreen";
 import { RebootScreen } from "@/components/RebootScreen";
 import { CrashScreen } from "@/components/CrashScreen";
 import { InstallationScreen } from "@/components/InstallationScreen";
-import { AdminPanel } from "@/components/AdminPanel";
 import { MaintenanceMode } from "@/components/MaintenanceMode";
 import { LockdownScreen } from "@/components/LockdownScreen";
 import { FirstTimeTour } from "@/components/FirstTimeTour";
@@ -40,7 +39,6 @@ const Index = () => {
   const [crashed, setCrashed] = useState(false);
   const [killedProcess, setKilledProcess] = useState<string>("");
   const [crashType, setCrashType] = useState<"kernel" | "virus" | "bluescreen" | "memory" | "corruption" | "overload">("kernel");
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [customCrashData, setCustomCrashData] = useState<{ title: string; message: string } | null>(null);
   const [lockdownMode, setLockdownMode] = useState(false);
@@ -109,8 +107,8 @@ const Index = () => {
     // Expose console commands to window object
     (window as any).adminPanel = (password?: string) => {
       if (password === "HereIsThePassword" || !password) {
-        setShowAdminPanel(true);
-        console.log("%c[SYSTEM] Admin Panel Activated", "color: #00ff00; font-weight: bold");
+        window.open('/admin', '_blank');
+        console.log("%c[SYSTEM] Admin Panel Opened in New Tab", "color: #00ff00; font-weight: bold");
       } else {
         console.log("%c[ERROR] Invalid password", "color: #ff0000; font-weight: bold");
       }
@@ -123,7 +121,6 @@ const Index = () => {
 
     (window as any).normalMode = () => {
       setMaintenanceMode(false);
-      setShowAdminPanel(false);
       console.log("%c[SYSTEM] Returning to Normal Mode...", "color: #00ff00; font-weight: bold");
     };
 
@@ -367,13 +364,11 @@ const Index = () => {
         onReboot={handleReboot}
         onShutdown={handleShutdown}
         onCriticalKill={handleCriticalKill}
-        onOpenAdminPanel={() => setShowAdminPanel(true)}
         onLockdown={handleLockdown}
         onEnterBios={handleEnterBios}
         onUpdate={() => setIsUpdating(true)}
       />
       <ChangelogDialog />
-      {showAdminPanel && <AdminPanel onExit={() => setShowAdminPanel(false)} onCrash={handleAdminCrash} onCustomCrash={handleCustomCrash} />}
       {maintenanceMode && <MaintenanceMode onExit={() => setMaintenanceMode(false)} />}
       {showTour && <FirstTimeTour onComplete={() => setShowTour(false)} />}
     </>
