@@ -40,6 +40,10 @@ import { VideoPlayer } from "./apps/VideoPlayer";
 import { ImageViewer } from "./apps/ImageViewer";
 import { PdfReader } from "./apps/PdfReader";
 import { FileReader } from "./apps/FileReader";
+import { Spreadsheet } from "./apps/Spreadsheet";
+import { EmailClient } from "./apps/EmailClient";
+import { InstantChat } from "./apps/InstantChat";
+import { GenericInstaller } from "./apps/GenericInstaller";
 
 interface WindowData {
   id: string;
@@ -160,13 +164,15 @@ export const WindowManager = ({ windows, onClose, onFocus, onMinimize, allWindow
         return <GenericApp title="File Compressor" description="Archive and compress files" features={["Multiple format support", "Batch compression", "Encryption options", "Extract archives"]} />;
       case "pdf-reader":
         return <PdfReader />;
+      case "file-reader":
+        return <FileReader />;
       case "installer":
         return <UrbanshadeInstaller onComplete={() => {
           const windowId = windows.find(w => w.app.id === appId)?.id;
           if (windowId) onCloseWindow(windowId);
         }} />;
       case "spreadsheet":
-        return <GenericApp title="Data Sheets" description="Spreadsheet calculations and data analysis" features={["Formulas and functions", "Charts and graphs", "Data sorting and filtering", "Import/export formats"]} />;
+        return <Spreadsheet />;
       case "presentation":
         return <GenericApp title="Slide Maker" description="Create professional presentations" features={["Slide templates", "Animations and transitions", "Media embedding", "Presenter mode"]} />;
       case "music-player":
@@ -180,11 +186,11 @@ export const WindowManager = ({ windows, onClose, onFocus, onMinimize, allWindow
       case "game-center":
         return <GenericApp title="Game Hub" description="Collection of mini games" features={["Classic arcade games", "Puzzle challenges", "Score tracking", "Achievement system"]} />;
       case "chat":
-        return <GenericApp title="Instant Chat" description="Real-time messaging platform" features={["One-on-one chat", "Group conversations", "File sharing", "Emoji and reactions"]} />;
+        return <InstantChat />;
       case "video-call":
         return <GenericApp title="Video Conference" description="Video calls and meetings" features={["HD video calls", "Screen sharing", "Recording capability", "Virtual backgrounds"]} />;
       case "email-client":
-        return <GenericApp title="Mail Client Pro" description="Advanced email management" features={["Multiple accounts", "Spam filtering", "Email templates", "Calendar integration"]} />;
+        return <EmailClient />;
       case "ftp":
         return <GenericApp title="FTP Manager" description="File transfer protocol client" features={["Secure FTP/SFTP", "Drag and drop transfers", "Queue management", "Site bookmarks"]} />;
       case "ssh":

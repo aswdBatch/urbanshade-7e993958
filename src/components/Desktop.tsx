@@ -53,6 +53,23 @@ export const Desktop = ({
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // Listen for installer window requests
+  useEffect(() => {
+    const handleOpenInstaller = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { appName } = customEvent.detail;
+      const installerApp = {
+        id: "installer",
+        name: `${appName} Setup`,
+        icon: <Download className="w-11 h-11" />,
+        run: () => {}
+      };
+      openWindow(installerApp);
+    };
+    window.addEventListener('open-installer', handleOpenInstaller);
+    return () => window.removeEventListener('open-installer', handleOpenInstaller);
+  }, [nextZIndex]);
   const [draggedIcon, setDraggedIcon] = useState<string | null>(null);
   const [iconPositions, setIconPositions] = useState<Record<string, { x: number; y: number }>>(() => {
     const saved = localStorage.getItem('icon_positions');

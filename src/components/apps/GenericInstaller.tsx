@@ -4,10 +4,27 @@ import { toast } from "sonner";
 
 interface GenericInstallerProps {
   appName?: string;
+  appId?: string;
+  installerId?: string;
   onComplete?: () => void;
 }
 
-export const GenericInstaller = ({ appName = "Application", onComplete }: GenericInstallerProps) => {
+export const GenericInstaller = ({ appName = "Application", appId, installerId, onComplete }: GenericInstallerProps) => {
+  // Load installer data if not provided
+  const installerData = (() => {
+    if (appName && appId) return { appName, appId, installerId };
+    
+    const stored = localStorage.getItem('current_installer');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        appName: parsed.appName || appName,
+        appId: parsed.appId || appId,
+        installerId: parsed.id || installerId
+      };
+    }
+    return { appName, appId, installerId };
+  })();
   const [stage, setStage] = useState<"welcome" | "configure" | "installing" | "complete">("welcome");
   const [progress, setProgress] = useState(0);
   const [installLocation, setInstallLocation] = useState("C:\\Program Files\\Urbanshade");
@@ -39,9 +56,32 @@ export const GenericInstaller = ({ appName = "Application", onComplete }: Generi
   };
 
   const handleFinish = () => {
-    if (options.startMenu) {
-      toast.success(`${appName} added to Start Menu`);
+    // Add to installed apps
+    if (installerData.appId) {
+      const installed = JSON.parse(localStorage.getItem('urbanshade_installed_apps') || '[]');
+      if (!installed.includes(installerData.appId)) {
+        installed.push(installerData.appId);
+        localStorage.setItem('urbanshade_installed_apps', JSON.stringify(installed));
+      }
     }
+
+    // Remove installer from downloads
+    if (installerData.installerId) {
+      const installers = JSON.parse(localStorage.getItem('downloads_installers') || '[]');
+      const updated = installers.filter((i: any) => i.id !== installerData.installerId);
+      localStorage.setItem('downloads_installers', JSON.stringify(updated));
+    }
+
+    // Clear current installer data
+    localStorage.removeItem('current_installer');
+
+    if (options.startMenu) {
+      toast.success(`${installerData.appName} installed successfully!`);
+    }
+    
+    // Trigger storage event to update UI
+    window.dispatchEvent(new Event('storage'));
+    
     onComplete?.();
   };
 
@@ -51,7 +91,7 @@ export const GenericInstaller = ({ appName = "Application", onComplete }: Generi
       <div className="border-b border-[#0078D7]/30 bg-[#0078D7]/10 p-4 flex items-center gap-3">
         <Package className="w-6 h-6 text-[#0078D7]" />
         <div>
-          <h1 className="text-lg font-bold">{appName} Setup</h1>
+          <h1 className="text-lg font-bold">{installerData.appName} Setup</h1>
           <p className="text-xs opacity-70">Installation Wizard</p>
         </div>
       </div>
@@ -64,9 +104,9 @@ export const GenericInstaller = ({ appName = "Application", onComplete }: Generi
               <div className="w-20 h-20 mx-auto bg-[#0078D7]/20 rounded-full flex items-center justify-center border-2 border-[#0078D7] animate-scale-in">
                 <Package className="w-12 h-12 text-[#0078D7]" />
               </div>
-              <h2 className="text-2xl font-bold">Welcome to {appName} Setup</h2>
+              <h2 className="text-2xl font-bold">Welcome to {installerData.appName} Setup</h2>
               <p className="text-gray-300">
-                This wizard will guide you through the installation of {appName}.
+                This wizard will guide you through the installation of {installerData.appName}.
               </p>
             </div>
 
@@ -155,8 +195,8 @@ export const GenericInstaller = ({ appName = "Application", onComplete }: Generi
           <div className="max-w-xl mx-auto space-y-6 animate-fade-in">
             <div className="text-center space-y-4">
               <Download className="w-16 h-16 mx-auto text-[#0078D7] animate-pulse" />
-              <h2 className="text-xl font-bold">Installing {appName}</h2>
-              <p className="text-gray-300">Please wait while Setup installs {appName}...</p>
+              <h2 className="text-xl font-bold">Installing {installerData.appName}</h2>
+              <p className="text-gray-300">Please wait while Setup installs {installerData.appName}...</p>
             </div>
 
             <div className="space-y-2">
@@ -186,7 +226,7 @@ export const GenericInstaller = ({ appName = "Application", onComplete }: Generi
               </div>
               <h2 className="text-2xl font-bold">Installation Complete</h2>
               <p className="text-gray-300">
-                {appName} has been successfully installed on your computer.
+                {installerData.appName} has been successfully installed on your computer.
               </p>
             </div>
 
