@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Terminal, RotateCcw, HardDrive, Image, Settings, ArrowLeft, Download, Upload, FileImage, Edit, Trash2 } from "lucide-react";
+import { Terminal, RotateCcw, HardDrive, Image, Settings, ArrowLeft, Download, Upload, FileImage, Edit, Trash2, Zap, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 interface RecoveryModeProps {
@@ -14,7 +14,7 @@ interface RecoveryImage {
 }
 
 export const RecoveryMode = ({ onExit }: RecoveryModeProps) => {
-  const [view, setView] = useState<"menu" | "restore" | "flash" | "cmd" | "advanced" | "processing" | "image-editor">("menu");
+  const [view, setView] = useState<"menu" | "restore" | "flash" | "cmd" | "advanced" | "processing" | "image-editor" | "emergency-admin">("menu");
   const [cmdOutput, setCmdOutput] = useState<string[]>([
     "URBANSHADE Recovery Console v3.7",
     "Type 'help' for available commands",
@@ -35,6 +35,86 @@ export const RecoveryMode = ({ onExit }: RecoveryModeProps) => {
   const [processingMessage, setProcessingMessage] = useState("");
   const [processingProgress, setProcessingProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recoveryDiscInputRef = useRef<HTMLInputElement>(null);
+
+  const handleQuickReset = () => {
+    if (!window.confirm("⚠️ QUICK RESET\n\nThis will PERMANENTLY delete ALL saved data and restart the system.\n\nAre you absolutely sure?")) return;
+    
+    setProcessingMessage("Performing quick reset...");
+    setProcessingProgress(0);
+    setView("processing");
+    
+    const interval = setInterval(() => {
+      setProcessingProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            localStorage.clear();
+            toast.success("System reset complete. Restarting...");
+            setTimeout(() => window.location.reload(), 500);
+          }, 300);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 50);
+  };
+
+  const handleExportRecoveryDisc = () => {
+    // Create a special recovery disc with emergency admin access
+    const recoveryDisc = {
+      type: "urbanshade_recovery_disc",
+      version: "2.2.0",
+      created: new Date().toISOString(),
+      emergency_admin: true,
+      auth_key: btoa(`emergency_${Date.now()}_${Math.random().toString(36)}`),
+      system_snapshot: {} as Record<string, string>
+    };
+    
+    // Include critical system data
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !key.startsWith('urbanshade_recovery_images')) {
+        recoveryDisc.system_snapshot[key] = localStorage.getItem(key) || "";
+      }
+    }
+    
+    const blob = new Blob([JSON.stringify(recoveryDisc, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `urbanshade_recovery_disc_${new Date().getTime()}.usd`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Recovery disc exported! This file contains emergency admin access.");
+  };
+
+  const handleImportRecoveryDisc = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const disc = JSON.parse(e.target?.result as string);
+        if (disc.type !== "urbanshade_recovery_disc") {
+          toast.error("Invalid recovery disc format");
+          return;
+        }
+        
+        // Store the disc data for emergency admin access
+        localStorage.setItem("urbanshade_emergency_disc", JSON.stringify(disc));
+        setView("emergency-admin");
+        toast.success("Recovery disc loaded! Emergency admin panel available.");
+      } catch (error) {
+        toast.error("Failed to parse recovery disc");
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
 
   const saveRecoveryImages = (images: RecoveryImage[]) => {
     localStorage.setItem('urbanshade_recovery_images_data', JSON.stringify(images));
@@ -383,6 +463,66 @@ export const RecoveryMode = ({ onExit }: RecoveryModeProps) => {
             </div>
           </div>
         </button>
+
+        {/* Separator */}
+        <div className="border-t border-cyan-500/20 my-2" />
+
+        {/* Quick Reset */}
+        <button
+          onClick={handleQuickReset}
+          className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg p-6 text-left transition-all hover:scale-[1.02]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-red-500/20 rounded flex items-center justify-center">
+              <Zap className="w-6 h-6 text-red-400" />
+            </div>
+            <div>
+              <div className="font-bold text-lg text-red-400">Quick Reset</div>
+              <div className="text-sm opacity-70 text-gray-300">Instantly wipe ALL data and restart fresh</div>
+            </div>
+          </div>
+        </button>
+
+        {/* Recovery Disc */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleExportRecoveryDisc}
+            className="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg p-4 text-left transition-all hover:scale-[1.02]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-500/20 rounded flex items-center justify-center">
+                <Download className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <div className="font-bold text-sm text-purple-400">Export Recovery Disc</div>
+                <div className="text-xs opacity-70 text-gray-300">Create emergency admin access file</div>
+              </div>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => recoveryDiscInputRef.current?.click()}
+            className="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg p-4 text-left transition-all hover:scale-[1.02]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-500/20 rounded flex items-center justify-center">
+                <Shield className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <div className="font-bold text-sm text-purple-400">Load Recovery Disc</div>
+                <div className="text-xs opacity-70 text-gray-300">Access emergency admin panel</div>
+              </div>
+            </div>
+          </button>
+        </div>
+        
+        <input
+          ref={recoveryDiscInputRef}
+          type="file"
+          accept=".usd,.json"
+          onChange={handleImportRecoveryDisc}
+          className="hidden"
+        />
       </div>
     </div>
   );
@@ -672,6 +812,188 @@ export const RecoveryMode = ({ onExit }: RecoveryModeProps) => {
     </div>
   );
 
+  const renderEmergencyAdmin = () => {
+    const discData = localStorage.getItem("urbanshade_emergency_disc");
+    let disc: any = null;
+    try {
+      disc = discData ? JSON.parse(discData) : null;
+    } catch (e) {
+      disc = null;
+    }
+
+    if (!disc) {
+      return (
+        <div className="p-8 max-w-4xl mx-auto">
+          <button onClick={() => setView("menu")} className="mb-6 flex items-center gap-2 hover:opacity-70 text-cyan-400">
+            <ArrowLeft className="w-4 h-4" />
+            Back to menu
+          </button>
+          <div className="text-center py-12 text-red-400">
+            No recovery disc loaded. Please load a recovery disc first.
+          </div>
+        </div>
+      );
+    }
+
+    const handleRestoreFromDisc = () => {
+      if (!window.confirm("Restore system from recovery disc? This will replace all current data.")) return;
+      
+      setProcessingMessage("Restoring from recovery disc...");
+      setProcessingProgress(0);
+      setView("processing");
+      
+      const interval = setInterval(() => {
+        setProcessingProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+              localStorage.clear();
+              Object.entries(disc.system_snapshot || {}).forEach(([key, value]) => {
+                localStorage.setItem(key, value as string);
+              });
+              toast.success("System restored from disc. Restarting...");
+              setTimeout(() => window.location.reload(), 1000);
+            }, 500);
+            return 100;
+          }
+          return prev + 3;
+        });
+      }, 80);
+    };
+
+    const handleCreateEmergencyAdmin = () => {
+      const adminData = {
+        id: "EMERGENCY_ADMIN",
+        name: "Emergency Administrator",
+        username: "emergency_admin",
+        password: "",
+        role: "Emergency Admin",
+        clearance: 5,
+        department: "Recovery",
+        isEmergency: true
+      };
+      
+      localStorage.setItem("urbanshade_admin", JSON.stringify(adminData));
+      localStorage.setItem("urbanshade_first_boot", "true");
+      toast.success("Emergency admin created. You can now login without password.");
+    };
+
+    const handleClearAllAccounts = () => {
+      if (!window.confirm("Clear all user accounts? You will need to create a new admin account.")) return;
+      localStorage.removeItem("urbanshade_admin");
+      localStorage.removeItem("urbanshade_accounts");
+      localStorage.removeItem("urbanshade_current_user");
+      toast.success("All accounts cleared.");
+    };
+
+    const handleResetPermissions = () => {
+      localStorage.removeItem("urbanshade_lockdown");
+      localStorage.removeItem("urbanshade_maintenance");
+      toast.success("All restrictions cleared.");
+    };
+
+    return (
+      <div className="p-8 max-w-4xl mx-auto">
+        <button onClick={() => setView("menu")} className="mb-6 flex items-center gap-2 hover:opacity-70 text-purple-400">
+          <ArrowLeft className="w-4 h-4" />
+          Back to menu
+        </button>
+        
+        <div className="flex items-center gap-3 mb-6">
+          <Shield className="w-8 h-8 text-purple-400" />
+          <div>
+            <h2 className="text-3xl font-bold text-purple-400">Emergency Admin Panel</h2>
+            <p className="text-sm text-gray-400">Recovery disc loaded: {new Date(disc.created).toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6 text-sm text-purple-300">
+          <strong>⚠️ Warning:</strong> These are emergency recovery tools. Use with caution.
+        </div>
+
+        <div className="grid gap-4">
+          {/* Account Recovery */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+            <h3 className="font-bold text-lg mb-3 text-cyan-400">Account Recovery</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleCreateEmergencyAdmin}
+                className="p-3 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded text-left"
+              >
+                <div className="font-bold text-green-400">Create Emergency Admin</div>
+                <div className="text-xs text-gray-400">Create a new admin with no password</div>
+              </button>
+              <button
+                onClick={handleClearAllAccounts}
+                className="p-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded text-left"
+              >
+                <div className="font-bold text-red-400">Clear All Accounts</div>
+                <div className="text-xs text-gray-400">Remove all user accounts</div>
+              </button>
+            </div>
+          </div>
+
+          {/* System Recovery */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+            <h3 className="font-bold text-lg mb-3 text-cyan-400">System Recovery</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleRestoreFromDisc}
+                className="p-3 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded text-left"
+              >
+                <div className="font-bold text-cyan-400">Restore From Disc</div>
+                <div className="text-xs text-gray-400">Restore system snapshot from this disc</div>
+              </button>
+              <button
+                onClick={handleResetPermissions}
+                className="p-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded text-left"
+              >
+                <div className="font-bold text-amber-400">Reset Restrictions</div>
+                <div className="text-xs text-gray-400">Clear lockdown and maintenance modes</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Data Tools */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+            <h3 className="font-bold text-lg mb-3 text-cyan-400">Data Tools</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleQuickReset}
+                className="p-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded text-left"
+              >
+                <div className="font-bold text-red-400">Factory Reset</div>
+                <div className="text-xs text-gray-400">Wipe everything and start fresh</div>
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("urbanshade_emergency_disc");
+                  setView("menu");
+                  toast.success("Recovery disc ejected");
+                }}
+                className="p-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-left"
+              >
+                <div className="font-bold">Eject Recovery Disc</div>
+                <div className="text-xs text-gray-400">Remove loaded disc from memory</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Disc Info */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+            <h3 className="font-bold text-lg mb-3 text-cyan-400">Disc Information</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><span className="text-gray-400">Version:</span> {disc.version}</div>
+              <div><span className="text-gray-400">Created:</span> {new Date(disc.created).toLocaleDateString()}</div>
+              <div><span className="text-gray-400">Snapshot Size:</span> {Object.keys(disc.system_snapshot || {}).length} entries</div>
+              <div><span className="text-gray-400">Auth Key:</span> <span className="font-mono text-xs">{disc.auth_key?.substring(0, 16)}...</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-[#0a1929] to-[#001f3f] text-white overflow-auto">
       {view === "menu" && renderMenu()}
@@ -681,6 +1003,7 @@ export const RecoveryMode = ({ onExit }: RecoveryModeProps) => {
       {view === "cmd" && renderCmd()}
       {view === "advanced" && renderAdvanced()}
       {view === "processing" && renderProcessing()}
+      {view === "emergency-admin" && renderEmergencyAdmin()}
     </div>
   );
 };
