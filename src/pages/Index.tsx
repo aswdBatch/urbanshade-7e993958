@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Desktop } from "@/components/Desktop";
 import { UserSelectionScreen } from "@/components/UserSelectionScreen";
@@ -22,6 +22,7 @@ import { DevModeConsole } from "@/components/DevModeConsole";
 import { BugcheckScreen, createBugcheck, BugcheckData } from "@/components/BugcheckScreen";
 import { actionDispatcher } from "@/lib/actionDispatcher";
 import { systemBus } from "@/lib/systemBus";
+import { commandQueue, QueuedCommand } from "@/lib/commandQueue";
 
 const Index = () => {
   const [adminSetupComplete, setAdminSetupComplete] = useState(false);
@@ -193,14 +194,87 @@ const Index = () => {
     };
   }, [loggedIn, lockdownMode, crashed, shuttingDown, rebooting, booted, biosComplete, inRecoveryMode, keyBuffer]);
 
-  // Check for pending crashes/bugchecks from DEF-DEV admin
+  // Command Queue Polling - Check for commands from DEF-DEV 4 times per second
   useEffect(() => {
+    const handleCommand = (cmd: QueuedCommand) => {
+      actionDispatcher.system(`Executing queued command: ${cmd.type}`, { source: cmd.source });
+      
+      switch (cmd.type) {
+        case 'CRASH':
+          const crash = triggerCrash(cmd.payload.type as CrashType, { process: cmd.payload.process || 'queue.exe' });
+          setCrashData(crash);
+          setCrashed(true);
+          break;
+          
+        case 'BUGCHECK':
+          const bugcheck = createBugcheck(cmd.payload.code, cmd.payload.description, cmd.source);
+          setBugcheckData(bugcheck);
+          break;
+          
+        case 'REBOOT':
+          handleReboot();
+          break;
+          
+        case 'SHUTDOWN':
+          handleShutdown();
+          break;
+          
+        case 'LOCKDOWN':
+          setLockdownProtocol(cmd.payload.protocol || 'ALPHA');
+          setLockdownMode(true);
+          break;
+          
+        case 'RECOVERY':
+          setInRecoveryMode(true);
+          break;
+          
+        case 'WIPE':
+          localStorage.clear();
+          window.location.reload();
+          break;
+          
+        case 'WRITE_STORAGE':
+          if (cmd.payload.key && cmd.payload.value !== undefined) {
+            localStorage.setItem(cmd.payload.key, cmd.payload.value);
+            actionDispatcher.file(`Storage write: ${cmd.payload.key}`);
+          }
+          break;
+          
+        case 'DELETE_STORAGE':
+          if (cmd.payload.key) {
+            localStorage.removeItem(cmd.payload.key);
+            actionDispatcher.file(`Storage delete: ${cmd.payload.key}`);
+          }
+          break;
+          
+        case 'TOAST':
+          const toastType = cmd.payload.type || 'info';
+          if (toastType === 'success') toast.success(cmd.payload.message);
+          else if (toastType === 'error') toast.error(cmd.payload.message);
+          else if (toastType === 'warning') toast.warning(cmd.payload.message);
+          else toast.info(cmd.payload.message);
+          break;
+          
+        case 'CUSTOM':
+          // Handle custom commands via system bus
+          systemBus.emit('CUSTOM_COMMAND', cmd.payload);
+          break;
+      }
+    };
+
+    // Subscribe to command queue
+    const unsubscribe = commandQueue.onAny(handleCommand);
+    
+    // Start polling (4 times per second = 250ms)
+    commandQueue.startPolling(250);
+    
+    // Also check for legacy pending crashes/bugchecks (backwards compatibility)
     const pendingCrash = localStorage.getItem('urbanshade_pending_crash');
     if (pendingCrash) {
       localStorage.removeItem('urbanshade_pending_crash');
       try {
         const data = JSON.parse(pendingCrash);
-        actionDispatcher.system(`Processing pending crash: ${data.type}`);
+        actionDispatcher.system(`Processing legacy pending crash: ${data.type}`);
         const crash = triggerCrash(data.type as CrashType, { process: data.process || 'admin.exe' });
         setCrashData(crash);
         setCrashed(true);
@@ -214,13 +288,18 @@ const Index = () => {
       localStorage.removeItem('urbanshade_pending_bugcheck');
       try {
         const data = JSON.parse(pendingBugcheck);
-        actionDispatcher.system(`Processing pending bugcheck: ${data.code}`);
+        actionDispatcher.system(`Processing legacy pending bugcheck: ${data.code}`);
         const bugcheck = createBugcheck(data.code, data.description, 'DEF-DEV Admin');
         setBugcheckData(bugcheck);
       } catch (e) {
         console.error("Failed to parse pending bugcheck", e);
       }
     }
+
+    return () => {
+      unsubscribe();
+      commandQueue.stopPolling();
+    };
   }, []);
 
   // System Bus listeners for cross-component communication

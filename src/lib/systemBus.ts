@@ -12,7 +12,8 @@ export type SystemEventType =
   | "TRIGGER_REBOOT"
   | "TRIGGER_SHUTDOWN"
   | "OPEN_DEV_MODE"
-  | "CLOSE_ADMIN_PANEL";
+  | "CLOSE_ADMIN_PANEL"
+  | "CUSTOM_COMMAND";
 
 export interface SystemEvent {
   type: SystemEventType;
