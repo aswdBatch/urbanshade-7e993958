@@ -21,6 +21,7 @@ import { LogoutScreen } from "@/components/LogoutScreen";
 import { DevModeConsole } from "@/components/DevModeConsole";
 import { BugcheckScreen, createBugcheck, BugcheckData } from "@/components/BugcheckScreen";
 import { actionDispatcher } from "@/lib/actionDispatcher";
+import { systemBus } from "@/lib/systemBus";
 
 const Index = () => {
   const [adminSetupComplete, setAdminSetupComplete] = useState(false);
@@ -220,6 +221,61 @@ const Index = () => {
         console.error("Failed to parse pending bugcheck", e);
       }
     }
+  }, []);
+
+  // System Bus listeners for cross-component communication
+  useEffect(() => {
+    const unsubCrash = systemBus.on("TRIGGER_CRASH", (event) => {
+      const { crashType, process } = event.payload || {};
+      if (crashType) {
+        const crash = triggerCrash(crashType, { process: process || 'systembus.exe' });
+        setCrashData(crash);
+        setCrashed(true);
+        setShowAdminPanel(false);
+      }
+    });
+
+    const unsubBugcheck = systemBus.on("TRIGGER_BUGCHECK", (event) => {
+      const { code, description } = event.payload || {};
+      if (code) {
+        const bugcheck = createBugcheck(code, description || 'System Bus triggered bugcheck', 'SystemBus');
+        setBugcheckData(bugcheck);
+        setShowAdminPanel(false);
+      }
+    });
+
+    const unsubRecovery = systemBus.on("ENTER_RECOVERY", () => {
+      setInRecoveryMode(true);
+      setShowAdminPanel(false);
+    });
+
+    const unsubReboot = systemBus.on("TRIGGER_REBOOT", () => {
+      handleReboot();
+      setShowAdminPanel(false);
+    });
+
+    const unsubShutdown = systemBus.on("TRIGGER_SHUTDOWN", () => {
+      handleShutdown();
+      setShowAdminPanel(false);
+    });
+
+    const unsubDevMode = systemBus.on("OPEN_DEV_MODE", () => {
+      setDevModeOpen(true);
+    });
+
+    const unsubCloseAdmin = systemBus.on("CLOSE_ADMIN_PANEL", () => {
+      setShowAdminPanel(false);
+    });
+
+    return () => {
+      unsubCrash();
+      unsubBugcheck();
+      unsubRecovery();
+      unsubReboot();
+      unsubShutdown();
+      unsubDevMode();
+      unsubCloseAdmin();
+    };
   }, []);
 
   // Check for first time tour

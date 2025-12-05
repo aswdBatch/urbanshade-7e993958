@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AlertTriangle, Bug, RefreshCw, ExternalLink } from "lucide-react";
 
 export type CrashType = 
   | "KERNEL_PANIC" 
@@ -162,47 +163,63 @@ export const CrashScreen = ({
 
   return (
     <div className="fixed inset-0 bg-[#0078d4] text-white font-sans overflow-hidden">
-      {/* Scan lines effect */}
+      {/* Subtle scan lines effect */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.02]" 
         style={{ 
           backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.3) 1px, rgba(0,0,0,0.3) 2px)' 
         }} 
       />
 
-      <div className="flex flex-col items-start justify-center h-full p-16 max-w-4xl mx-auto animate-fade-in">
+      <div className="flex flex-col items-start justify-center h-full p-8 md:p-16 max-w-4xl mx-auto animate-fade-in">
         {/* Emoticon */}
-        <div className="text-[140px] leading-none mb-4 font-light">:(</div>
+        <div className="text-[100px] md:text-[140px] leading-none mb-4 font-light">:(</div>
         
         {/* Main message */}
-        <div className="space-y-6 mb-12">
-          <p className="text-2xl leading-relaxed">
+        <div className="space-y-6 mb-8 md:mb-12">
+          <p className="text-xl md:text-2xl leading-relaxed">
             {resolvedCrashData.description || stopInfo.description}
           </p>
           
-          {/* Honest explanation */}
-          <div className="bg-white/10 border border-white/20 rounded-lg p-4 max-w-2xl">
-            <p className="text-base leading-relaxed opacity-90">
-              <span className="font-semibold text-yellow-200">This is a real error, not a simulation.</span>
-              <br />
-              Something went wrong — either an action triggered an unhandled exception, 
-              or there's a bug in the system that needs fixing. We're sorry for the inconvenience.
-              <br /><br />
-              <span className="opacity-70 text-sm">
-                If this keeps happening, try accessing Recovery Mode on next boot or report the issue.
-              </span>
-            </p>
+          {/* CRITICAL: NOT A SIMULATION */}
+          <div className="bg-white/15 border-2 border-white/30 rounded-lg p-5 max-w-2xl">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="w-7 h-7 text-yellow-300 flex-shrink-0 mt-0.5" />
+              <div className="space-y-3">
+                <p className="text-base md:text-lg leading-relaxed font-semibold text-yellow-200">
+                  This is NOT a simulation — a real error occurred.
+                </p>
+                <p className="text-sm md:text-base leading-relaxed opacity-90">
+                  Something went wrong that the system couldn't recover from automatically. This could be 
+                  a bug in the code, an unexpected state, or a resource issue.
+                </p>
+                <div className="pt-2 border-t border-white/20">
+                  <p className="text-xs md:text-sm opacity-70">
+                    <strong>What you can do:</strong> Click "Restart now" to reboot the system. If this keeps 
+                    happening, try entering Recovery Mode (F2 during boot) or report the issue via Debug Error.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <p className="text-xl">
-            {displayProgress}% complete
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="h-1 w-32 bg-white/30 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white transition-all duration-150" 
+                style={{ width: `${displayProgress}%` }}
+              />
+            </div>
+            <p className="text-lg md:text-xl">
+              {displayProgress}% complete
+            </p>
+          </div>
         </div>
 
         {/* QR Code and info */}
-        <div className="flex items-start gap-6 mb-12">
+        <div className="flex flex-col md:flex-row items-start gap-6 mb-8 md:mb-12">
           {/* Fake QR Code */}
           <div className={`transition-opacity duration-500 ${qrVisible ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="w-24 h-24 bg-white p-2 rounded-sm">
+            <div className="w-20 h-20 md:w-24 md:h-24 bg-white p-2 rounded-sm">
               <div className="w-full h-full grid grid-cols-5 gap-0.5">
                 {Array.from({ length: 25 }).map((_, i) => (
                   <div 
@@ -215,36 +232,33 @@ export const CrashScreen = ({
           </div>
 
           {/* Technical info */}
-          <div className="text-sm leading-relaxed space-y-4 opacity-90">
+          <div className="text-sm leading-relaxed space-y-3 opacity-90">
             <p>
               For more information about this issue and possible fixes, visit<br />
-              https://www.urbanshade.dev/stopcode
+              <span className="underline">https://www.urbanshade.dev/stopcode</span>
             </p>
             <p>
               If you call a support person, give them this info:
             </p>
-            <p className="font-mono">
-              Stop code: {resolvedCrashData.stopCode.replace(/_/g, ' ')}
-            </p>
-            {(stopInfo.whatFailed || resolvedCrashData.module) && (
-              <p className="font-mono">
-                What failed: {resolvedCrashData.module || stopInfo.whatFailed}
-              </p>
-            )}
-            {resolvedCrashData.process && (
-              <p className="font-mono">
-                Process: {resolvedCrashData.process}
-              </p>
-            )}
+            <div className="font-mono space-y-1 bg-black/20 p-3 rounded">
+              <p>Stop code: {resolvedCrashData.stopCode.replace(/_/g, ' ')}</p>
+              {(stopInfo.whatFailed || resolvedCrashData.module) && (
+                <p>What failed: {resolvedCrashData.module || stopInfo.whatFailed}</p>
+              )}
+              {resolvedCrashData.process && (
+                <p>Process: {resolvedCrashData.process}</p>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={onReboot}
-            className="px-8 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold transition-colors text-lg"
+            className="flex items-center gap-2 px-6 md:px-8 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold transition-colors text-base md:text-lg rounded"
           >
+            <RefreshCw className="w-5 h-5" />
             Restart now
           </button>
           <button
@@ -258,15 +272,16 @@ export const CrashScreen = ({
               }));
               window.location.href = "/def-dev?from=crash";
             }}
-            className="px-8 py-3 bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 font-semibold transition-colors text-lg border border-amber-500/50"
+            className="flex items-center gap-2 px-6 md:px-8 py-3 bg-amber-500/30 hover:bg-amber-500/40 text-amber-100 font-semibold transition-colors text-base md:text-lg border border-amber-400/50 rounded"
           >
+            <Bug className="w-5 h-5" />
             Debug Error
           </button>
         </div>
 
         {/* Debug info at bottom */}
-        <div className="absolute bottom-8 left-16 right-16 text-xs font-mono opacity-50">
-          <div className="flex justify-between">
+        <div className="absolute bottom-6 md:bottom-8 left-8 md:left-16 right-8 md:right-16 text-xs font-mono opacity-50">
+          <div className="flex flex-col md:flex-row justify-between gap-2">
             <span>URBANSHADE OS Build 22621.2428</span>
             <span>{new Date().toLocaleString()}</span>
           </div>
