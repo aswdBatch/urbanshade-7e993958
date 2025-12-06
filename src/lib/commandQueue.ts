@@ -13,7 +13,10 @@ export type CommandType =
   | "DELETE_STORAGE"
   | "EXEC_TERMINAL"
   | "TOAST"
-  | "CUSTOM";
+  | "CUSTOM"
+  | "SET_BUGCHECK"
+  | "APT_INSTALL"
+  | "UUR_IMPORT";
 
 export interface QueuedCommand {
   id: string;
@@ -26,6 +29,7 @@ export interface QueuedCommand {
 
 const QUEUE_KEY = 'urbanshade_command_queue';
 const PERSISTENCE_KEY = 'def_dev_persistence_enabled';
+const BUGCHECK_DISABLED_KEY = 'urbanshade_bugchecks_disabled';
 
 class CommandQueue {
   private pollInterval: number | null = null;
@@ -137,6 +141,20 @@ class CommandQueue {
     return this.pollInterval !== null;
   }
 
+  // === Bugcheck Control ===
+  
+  areBugchecksDisabled(): boolean {
+    return sessionStorage.getItem(BUGCHECK_DISABLED_KEY) === 'true';
+  }
+
+  setBugchecksDisabled(disabled: boolean): void {
+    if (disabled) {
+      sessionStorage.setItem(BUGCHECK_DISABLED_KEY, 'true');
+    } else {
+      sessionStorage.removeItem(BUGCHECK_DISABLED_KEY);
+    }
+  }
+
   // === Persistence System ===
   
   isPersistenceEnabled(): boolean {
@@ -196,6 +214,19 @@ class CommandQueue {
   queueCustom(action: string, data: Record<string, any> = {}): string {
     return this.queue('CUSTOM', { action, ...data });
   }
+
+  // New advanced commands
+  queueSetBugcheck(enabled: boolean): string {
+    return this.queue('SET_BUGCHECK', { enabled });
+  }
+
+  queueAptInstall(appId: string): string {
+    return this.queue('APT_INSTALL', { appId });
+  }
+
+  queueUurImport(appName: string, version: string): string {
+    return this.queue('UUR_IMPORT', { appName, version });
+  }
 }
 
 // Singleton
@@ -235,4 +266,46 @@ export const TERMINAL_COMMANDS: Record<string, { desc: string; usage: string }> 
   status: { desc: 'Show system status', usage: 'status' },
   queue: { desc: 'Show command queue', usage: 'queue' },
   exec: { desc: 'Execute queued command on OS', usage: 'exec <command>' },
+  // Advanced sudo commands
+  sudo: { desc: 'Execute privileged commands', usage: 'sudo <command> [args]' },
+  apt: { desc: 'Package manager (use with sudo)', usage: 'sudo apt install <app>' },
+  uur: { desc: 'UrbanShade User Repository', usage: 'uur imp <appname>_<version>' },
+};
+
+// Available apps for apt install
+export const INSTALLABLE_APPS: Record<string, { name: string; category: string }> = {
+  terminal: { name: "Terminal", category: "system" },
+  fileexplorer: { name: "File Explorer", category: "system" },
+  calculator: { name: "Calculator", category: "utility" },
+  notepad: { name: "Notepad", category: "utility" },
+  browser: { name: "Browser", category: "utility" },
+  settings: { name: "Settings", category: "system" },
+  taskmanager: { name: "Task Manager", category: "system" },
+  paint: { name: "Paint", category: "creative" },
+  clock: { name: "Clock", category: "utility" },
+  weather: { name: "Weather", category: "utility" },
+  systemmonitor: { name: "System Monitor", category: "system" },
+  emailclient: { name: "Email Client", category: "communication" },
+  musicplayer: { name: "Music Player", category: "media" },
+  videoplayer: { name: "Video Player", category: "media" },
+  imageviewer: { name: "Image Viewer", category: "media" },
+  vpn: { name: "VPN", category: "security" },
+  firewall: { name: "Firewall", category: "security" },
+  diskmanager: { name: "Disk Manager", category: "system" },
+  registryeditor: { name: "Registry Editor", category: "system" },
+  facilitymap: { name: "Facility Map", category: "facility" },
+  securitycameras: { name: "Security Cameras", category: "facility" },
+  personneldirectory: { name: "Personnel Directory", category: "facility" },
+  containmentmonitor: { name: "Containment Monitor", category: "facility" },
+  emergencyprotocols: { name: "Emergency Protocols", category: "facility" },
+  researchnotes: { name: "Research Notes", category: "facility" },
+  incidentreports: { name: "Incident Reports", category: "facility" },
+  audiologs: { name: "Audio Logs", category: "facility" },
+  powergrid: { name: "Power Grid", category: "facility" },
+  environmentalcontrol: { name: "Environmental Control", category: "facility" },
+  databaseviewer: { name: "Database Viewer", category: "facility" },
+  networkscanner: { name: "Network Scanner", category: "security" },
+  spreadsheet: { name: "Spreadsheet", category: "utility" },
+  messages: { name: "Messages", category: "communication" },
+  instantchat: { name: "Instant Chat", category: "communication" },
 };

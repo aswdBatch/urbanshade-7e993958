@@ -84,6 +84,11 @@ export const Terminal = ({ onCrash }: TerminalProps = {}) => {
   glitch        - ???
   crash         - System crash simulator
   
+  [ADVANCED COMMANDS]
+  sudo set bugcheck <0|1>    - Disable/enable bugchecks
+  sudo apt install <app>     - Quick install app
+  uur imp <app>_<ver>        - Import from UUR
+  
   clear         - Clear terminal`,
     
     status: `SYSTEM STATUS REPORT
@@ -553,16 +558,17 @@ Use for testing purposes only.`
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cmd = input.trim().toLowerCase();
+    const cmd = input.trim();
+    const cmdLower = cmd.toLowerCase();
     
     let output = "";
-    if (cmd === "clear") {
+    if (cmdLower === "clear") {
       setHistory([{ input: "", output: "URBANSHADE SECURE TERMINAL v3.2.1\nType 'help' for available commands.\n" }]);
       setInput("");
       return;
-    } else if (cmd === "") {
+    } else if (cmdLower === "") {
       output = "";
-    } else if (cmd === "secret") {
+    } else if (cmdLower === "secret") {
       output = commands.secret;
       setHistory(prev => [...prev, { input: cmd, output }]);
       setInput("");
@@ -570,8 +576,81 @@ Use for testing purposes only.`
         (window as any).adminPanel?.();
       }, 1000);
       return;
-    } else if (cmd.startsWith("crash ")) {
-      const crashType = cmd.replace("crash ", "").trim();
+    } else if (cmdLower.startsWith("sudo set bugcheck ")) {
+      // Handle sudo set bugcheck 0|1
+      const value = cmdLower.replace("sudo set bugcheck ", "").trim();
+      if (value === "0") {
+        sessionStorage.setItem('urbanshade_bugchecks_disabled', 'true');
+        output = `BUGCHECK SYSTEM DISABLED
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Bugchecks will be suppressed until page refresh.
+⚠ WARNING: This may allow data corruption!`;
+      } else if (value === "1") {
+        sessionStorage.removeItem('urbanshade_bugchecks_disabled');
+        output = `BUGCHECK SYSTEM ENABLED
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Bugchecks will now trigger on fatal errors.`;
+      } else {
+        output = `Usage: sudo set bugcheck <0|1>
+  0 = Disable bugchecks (until refresh)
+  1 = Enable bugchecks`;
+      }
+    } else if (cmdLower.startsWith("sudo apt install ")) {
+      // Handle sudo apt install <app>
+      const appName = cmdLower.replace("sudo apt install ", "").trim();
+      const installedApps = JSON.parse(localStorage.getItem('installed_apps') || '[]');
+      
+      // Quick install - just add to installed list
+      if (!installedApps.includes(appName)) {
+        installedApps.push(appName);
+        localStorage.setItem('installed_apps', JSON.stringify(installedApps));
+        output = `Reading package lists... Done
+Building dependency tree... Done
+The following NEW packages will be installed:
+  ${appName}
+0 upgraded, 1 newly installed, 0 to remove.
+Unpacking ${appName}... Done
+Setting up ${appName}... Done
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ ${appName} installed successfully!`;
+      } else {
+        output = `${appName} is already installed.`;
+      }
+    } else if (cmdLower.startsWith("uur imp ")) {
+      // Handle UUR import: uur imp appname_version
+      const appData = cmd.replace(/^uur imp /i, "").trim();
+      const match = appData.match(/^([a-zA-Z0-9_-]+)_([0-9.]+)$/);
+      
+      if (match) {
+        const [, appName, version] = match;
+        const uurApps = JSON.parse(localStorage.getItem('uur_imported_apps') || '[]');
+        const newApp = { name: appName, version, importedAt: new Date().toISOString() };
+        uurApps.push(newApp);
+        localStorage.setItem('uur_imported_apps', JSON.stringify(uurApps));
+        
+        output = `UUR - URBANSHADE USER REPOSITORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Connecting to community servers...
+Fetching ${appName} v${version}...
+Verifying package signature... OK
+Importing application...
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ ${appName} v${version} imported from UUR!
+
+Note: Import .uur files from Discord community
+server to add custom apps.`;
+      } else {
+        output = `UUR - URBANSHADE USER REPOSITORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Usage: uur imp <appname>_<version>
+
+Example: uur imp customapp_1.0
+
+Import .uur files from the Discord community
+server to add custom user-created apps.`;
+      }
+    } else if (cmdLower.startsWith("crash ")) {
+      const crashType = cmdLower.replace("crash ", "").trim();
       const validTypes = ["kernel", "bluescreen", "memory", "corruption", "overload", "virus"];
       
       if (validTypes.includes(crashType)) {
@@ -586,15 +665,15 @@ Use for testing purposes only.`
       } else {
         output = `Invalid crash type. Type 'crash' to see available types.`;
       }
-    } else if (commands[cmd]) {
-      output = commands[cmd];
-    } else if (HIDDEN_COMMANDS[cmd]) {
+    } else if (commands[cmdLower]) {
+      output = commands[cmdLower];
+    } else if (HIDDEN_COMMANDS[cmdLower]) {
       // Easter egg command found!
-      output = HIDDEN_COMMANDS[cmd].response;
-      discoverEasterEgg(`cmd_${cmd.replace(/\s+/g, '_')}`);
+      output = HIDDEN_COMMANDS[cmdLower].response;
+      discoverEasterEgg(`cmd_${cmdLower.replace(/\s+/g, '_')}`);
     } else {
       // Check plugin commands
-      const pluginCmd = pluginCommands.find((pc: any) => pc.name === cmd);
+      const pluginCmd = pluginCommands.find((pc: any) => pc.name === cmdLower);
       if (pluginCmd) {
         output = `━━━━━━━━━━━━━━━━━━━━━━━━━━\n${pluginCmd.name.toUpperCase()} (Plugin Command)\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${pluginCmd.description}\n\nPlugin ID: ${pluginCmd.id}\n\nThis is a simulated plugin command.\nFull functionality coming soon!`;
       } else {

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { BugcheckData, createBugcheck, BUGCHECK_CODES } from "@/components/BugcheckScreen";
+import { commandQueue } from "@/lib/commandQueue";
 
 export const useBugcheck = () => {
   const [activeBugcheck, setActiveBugcheck] = useState<BugcheckData | null>(null);
@@ -10,6 +11,12 @@ export const useBugcheck = () => {
     location?: string,
     stackTrace?: string
   ) => {
+    // Check if bugchecks are disabled (via sudo set bugcheck 0)
+    if (commandQueue.areBugchecksDisabled()) {
+      console.warn(`[BUGCHECK SUPPRESSED] ${code}: ${description}`);
+      return;
+    }
+
     const bugcheck = createBugcheck(code, description, location, stackTrace);
     setActiveBugcheck(bugcheck);
     
