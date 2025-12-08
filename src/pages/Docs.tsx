@@ -1,6 +1,90 @@
 import { ArrowLeft, Terminal, Rocket, Folder, Map, Keyboard, HelpCircle, Zap, Waves, Shield, Bug } from "lucide-react";
 import { Link } from "react-router-dom";
+import { BookOpen, Terminal, Shield, Cpu, Map, ArrowLeft, Keyboard, HelpCircle, Bug, Zap, Package } from "lucide-react";
 import { DocSearch } from "@/components/DocSearch";
+
+const docSections = [
+  {
+    title: "Getting Started",
+    description: "Learn the basics of UrbanShade OS and how to navigate the facility systems.",
+    icon: BookOpen,
+    link: "/docs/getting-started",
+    color: "from-green-500/20 to-emerald-500/20",
+    borderColor: "border-green-500/30"
+  },
+  {
+    title: "Applications",
+    description: "Complete guide to all built-in applications and their features.",
+    icon: Cpu,
+    link: "/docs/applications",
+    color: "from-blue-500/20 to-cyan-500/20",
+    borderColor: "border-blue-500/30"
+  },
+  {
+    title: "Facility Guide",
+    description: "Understanding zones, containment protocols, and facility operations.",
+    icon: Map,
+    link: "/docs/facility",
+    color: "from-purple-500/20 to-pink-500/20",
+    borderColor: "border-purple-500/30"
+  },
+  {
+    title: "Terminal Guide",
+    description: "Master the command line with our comprehensive terminal reference.",
+    icon: Terminal,
+    link: "/docs/terminal",
+    color: "from-amber-500/20 to-orange-500/20",
+    borderColor: "border-amber-500/30"
+  },
+  {
+    title: "New Features",
+    description: "UUR categories, ratings, window groups, multiple desktops, crash recovery & more.",
+    icon: Zap,
+    link: "/docs/features",
+    color: "from-cyan-500/20 to-blue-500/20",
+    borderColor: "border-cyan-500/30"
+  },
+  {
+    title: "Advanced Features",
+    description: "BIOS, Recovery Mode, Admin Panel, and other power user features.",
+    icon: Shield,
+    link: "/docs/advanced",
+    color: "from-red-500/20 to-rose-500/20",
+    borderColor: "border-red-500/30"
+  },
+  {
+    title: "UUR Repository",
+    description: "How to browse, install, rate, and submit packages to UUR.",
+    icon: Package,
+    link: "/docs/uur",
+    color: "from-teal-500/20 to-emerald-500/20",
+    borderColor: "border-teal-500/30"
+  },
+  {
+    title: "Keyboard Shortcuts",
+    description: "Quick reference for all keyboard shortcuts and hotkeys.",
+    icon: Keyboard,
+    link: "/docs/shortcuts",
+    color: "from-indigo-500/20 to-violet-500/20",
+    borderColor: "border-indigo-500/30"
+  },
+  {
+    title: "DEF-DEV Console",
+    description: "Developer documentation for the debugging and administration console.",
+    icon: Bug,
+    link: "/docs/def-dev",
+    color: "from-amber-500/20 to-yellow-500/20",
+    borderColor: "border-amber-500/30"
+  },
+  {
+    title: "Troubleshooting",
+    description: "Common issues, error codes, and how to resolve them.",
+    icon: HelpCircle,
+    link: "/docs/troubleshooting",
+    color: "from-gray-500/20 to-slate-500/20",
+    borderColor: "border-gray-500/30"
+  }
+];
 
 const Docs = () => {
   const sections = [

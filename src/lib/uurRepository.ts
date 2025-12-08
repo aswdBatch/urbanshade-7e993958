@@ -1,5 +1,18 @@
 // UUR Repository Management
-// Handles package registry, submissions, real apps, and package lists
+// Handles package registry, submissions, real apps, package lists, ratings, and categories
+
+export type UURCategory = 'app' | 'theme' | 'extension' | 'utility' | 'game' | 'productivity' | 'security' | 'system';
+
+export const UUR_CATEGORIES: { id: UURCategory; name: string; icon: string; color: string }[] = [
+  { id: 'app', name: 'Applications', icon: '📦', color: 'cyan' },
+  { id: 'utility', name: 'Utilities', icon: '🔧', color: 'green' },
+  { id: 'theme', name: 'Themes', icon: '🎨', color: 'purple' },
+  { id: 'extension', name: 'Extensions', icon: '🧩', color: 'amber' },
+  { id: 'game', name: 'Games', icon: '🎮', color: 'pink' },
+  { id: 'productivity', name: 'Productivity', icon: '📊', color: 'blue' },
+  { id: 'security', name: 'Security', icon: '🔒', color: 'red' },
+  { id: 'system', name: 'System', icon: '⚙️', color: 'slate' },
+];
 
 export interface UURPackage {
   id: string;
@@ -7,13 +20,16 @@ export interface UURPackage {
   description: string;
   version: string;
   author: string;
-  category: 'app' | 'theme' | 'extension' | 'utility';
+  category: UURCategory;
   downloads: number;
   stars: number;
   githubUrl?: string;
   isOfficial: boolean;
+  isFeatured?: boolean;
   listSource?: string;
   component?: () => React.ReactNode;
+  dependencies?: string[];
+  tags?: string[];
 }
 
 export interface UURSubmission {
@@ -128,7 +144,9 @@ export const UUR_REAL_PACKAGES: Record<string, UURPackage> = {
     downloads: 5420,
     stars: 128,
     isOfficial: true,
-    listSource: 'official'
+    isFeatured: true,
+    listSource: 'official',
+    tags: ['test', 'demo', 'starter']
   },
   'system-info': {
     id: 'system-info',
@@ -140,7 +158,63 @@ export const UUR_REAL_PACKAGES: Record<string, UURPackage> = {
     downloads: 3850,
     stars: 89,
     isOfficial: true,
-    listSource: 'official'
+    isFeatured: true,
+    listSource: 'official',
+    tags: ['system', 'info', 'diagnostics']
+  },
+  'theme-dark-neon': {
+    id: 'theme-dark-neon',
+    name: 'Dark Neon Theme',
+    description: 'A vibrant neon-styled dark theme with glowing accents',
+    version: '2.0.0',
+    author: 'ThemeForge',
+    category: 'theme',
+    downloads: 2100,
+    stars: 67,
+    isOfficial: true,
+    isFeatured: false,
+    listSource: 'official',
+    tags: ['theme', 'dark', 'neon']
+  },
+  'file-cleaner': {
+    id: 'file-cleaner',
+    name: 'File Cleaner',
+    description: 'Clean up temporary files and free up storage space',
+    version: '1.5.0',
+    author: 'CleanUtils',
+    category: 'utility',
+    downloads: 1890,
+    stars: 45,
+    isOfficial: true,
+    listSource: 'official',
+    tags: ['cleanup', 'storage', 'utility']
+  },
+  'mini-games': {
+    id: 'mini-games',
+    name: 'Mini Games Pack',
+    description: 'Collection of fun mini-games including Snake, Tetris, and Memory',
+    version: '1.0.0',
+    author: 'GameDev',
+    category: 'game',
+    downloads: 4200,
+    stars: 156,
+    isOfficial: true,
+    isFeatured: true,
+    listSource: 'official',
+    tags: ['games', 'fun', 'entertainment']
+  },
+  'password-gen': {
+    id: 'password-gen',
+    name: 'Password Generator',
+    description: 'Generate secure random passwords with customizable options',
+    version: '1.1.0',
+    author: 'SecureTools',
+    category: 'security',
+    downloads: 1560,
+    stars: 42,
+    isOfficial: true,
+    listSource: 'official',
+    tags: ['security', 'password', 'generator']
   }
 };
 
@@ -267,6 +341,16 @@ export const getOfficialList = (): UURList => ({
   packages: Object.values(UUR_REAL_PACKAGES)
 });
 
+// Get featured packages
+export const getFeaturedPackages = (): UURPackage[] => {
+  return getAllPackages().filter(pkg => pkg.isFeatured);
+};
+
+// Get packages by category
+export const getPackagesByCategory = (category: UURCategory): UURPackage[] => {
+  return getAllPackages().filter(pkg => pkg.category === category);
+};
+
 // Get custom (imported) lists
 export const getCustomLists = (): UURList[] => {
   try {
@@ -288,7 +372,8 @@ export interface UURManifest {
     description: string;
     version: string;
     author: string;
-    category: 'app' | 'theme' | 'extension' | 'utility';
+    category: UURCategory;
+    dependencies?: string[];
   }>;
 }
 
@@ -393,6 +478,80 @@ export const getAllPackages = (): UURPackage[] => {
   return [...official, ...custom];
 };
 
+// === DEPENDENCY RESOLUTION ===
+
+export const checkDependencies = (packageId: string): { 
+  satisfied: boolean; 
+  missing: string[]; 
+  installed: string[] 
+} => {
+  const pkg = getAllPackages().find(p => p.id === packageId);
+  if (!pkg || !pkg.dependencies || pkg.dependencies.length === 0) {
+    return { satisfied: true, missing: [], installed: [] };
+  }
+  
+  const installedApps = getInstalledUURApps();
+  const installedIds = installedApps.map(a => a.id);
+  
+  const missing: string[] = [];
+  const installed: string[] = [];
+  
+  for (const dep of pkg.dependencies) {
+    if (installedIds.includes(dep)) {
+      installed.push(dep);
+    } else {
+      missing.push(dep);
+    }
+  }
+  
+  return {
+    satisfied: missing.length === 0,
+    missing,
+    installed
+  };
+};
+
+export const installWithDependencies = async (
+  packageId: string, 
+  listSource?: string,
+  onProgress?: (message: string) => void
+): Promise<{ success: boolean; installed: string[] }> => {
+  const toInstall: string[] = [];
+  const installed: string[] = [];
+  
+  const collectDeps = (pkgId: string, visited: Set<string>) => {
+    if (visited.has(pkgId)) return;
+    visited.add(pkgId);
+    
+    const pkg = getAllPackages().find(p => p.id === pkgId);
+    if (!pkg) return;
+    
+    if (pkg.dependencies) {
+      for (const dep of pkg.dependencies) {
+        collectDeps(dep, visited);
+      }
+    }
+    
+    if (!isUURAppInstalled(pkgId)) {
+      toInstall.push(pkgId);
+    }
+  };
+  
+  collectDeps(packageId, new Set());
+  
+  for (const pkgId of toInstall) {
+    onProgress?.(`Installing ${pkgId}...`);
+    await new Promise(r => setTimeout(r, 500));
+    
+    const pkg = getAllPackages().find(p => p.id === pkgId);
+    if (installUURApp(pkgId, pkg?.listSource || listSource)) {
+      installed.push(pkgId);
+    }
+  }
+  
+  return { success: installed.includes(packageId), installed };
+};
+
 // === SUBMISSION MANAGEMENT ===
 
 export const getSubmissions = (): UURSubmission[] => {
@@ -491,4 +650,16 @@ export const uninstallUURApp = (appId: string): boolean => {
 
 export const isUURAppInstalled = (appId: string): boolean => {
   return getInstalledUURApps().some(a => a.id === appId);
+};
+
+// Search packages
+export const searchPackages = (query: string): UURPackage[] => {
+  const q = query.toLowerCase();
+  return getAllPackages().filter(pkg => 
+    pkg.name.toLowerCase().includes(q) ||
+    pkg.description.toLowerCase().includes(q) ||
+    pkg.author.toLowerCase().includes(q) ||
+    pkg.tags?.some(t => t.toLowerCase().includes(q)) ||
+    pkg.category.toLowerCase().includes(q)
+  );
 };
