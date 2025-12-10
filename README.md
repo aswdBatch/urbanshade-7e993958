@@ -34,7 +34,7 @@ Update cycle: every 2nd week on Friday - Sunday we push an update (hopefully)
 ## How to setup localy:
 
 1. Download this repo
-2. Download node.js (needed instantly
+2. Download node.js (needed instantly)
 3. Install miniweb (Or if you have python, get a python script that can run localhost. This setup will run over how to setup with miniweb)
 4. After installing node.js, go to repo folder, open cmd and do `npm install` (This gets all the dependencies)
 5. After getting the dependencies, do `npm run build` If you dont see any red text, there should be a dist\ folder.
@@ -42,7 +42,7 @@ Update cycle: every 2nd week on Friday - Sunday we push an update (hopefully)
 7. Put miniweb in the folder where `htdocs` is located
 8. Run miniweb
 
-It should be good to go now on `http://locahost:8080` or `localhost:8000`
+It should be good to go now on `http://localhost:8080` or `localhost:8000`
 (depends machine from machine, if one doesnt work try the other!
 
 
