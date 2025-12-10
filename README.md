@@ -18,6 +18,8 @@ This will help me continue this, and in return you get 10 extra credits, too!
 I cant be thankful enough for simply my friends supporting this. And especially, *YOU!*
 
 
+*(Note: If i accidentaly leak my account or key, i honestly... really dont care. This was made as a cool feature, not anything serious. If it does leak, i wont mind and just remove Online all togheter.)*
+
 ---
 ## Quick viewable status:
 
