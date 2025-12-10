@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          clearance: number | null
+          created_at: string
+          display_name: string | null
+          id: string
+          role: string | null
+          settings: Json | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          clearance?: number | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          role?: string | null
+          settings?: Json | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          clearance?: number | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          role?: string | null
+          settings?: Json | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      synced_settings: {
+        Row: {
+          created_at: string
+          desktop_icons: Json | null
+          id: string
+          install_type: string | null
+          installed_apps: Json | null
+          last_sync: string
+          system_settings: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          desktop_icons?: Json | null
+          id?: string
+          install_type?: string | null
+          installed_apps?: Json | null
+          last_sync?: string
+          system_settings?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          desktop_icons?: Json | null
+          id?: string
+          install_type?: string | null
+          installed_apps?: Json | null
+          last_sync?: string
+          system_settings?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

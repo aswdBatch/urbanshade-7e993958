@@ -1,25 +1,34 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Waves, Shield, Globe, Keyboard, Wifi, User, Lock, Eye, EyeOff, Settings, Check, ChevronRight, Terminal } from "lucide-react";
+import { Waves, Shield, Globe, Keyboard, Wifi, User, Lock, Eye, EyeOff, Settings, Check, ChevronRight, Terminal, Cloud, Monitor } from "lucide-react";
+import { useOnlineAccount } from "@/hooks/useOnlineAccount";
 
 interface OOBEScreenProps {
   onComplete: () => void;
 }
 
 export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
-  const [step, setStep] = useState<"welcome" | "region" | "keyboard" | "network" | "account" | "password" | "privacy" | "finish">("welcome");
+  const [step, setStep] = useState<"welcome" | "region" | "keyboard" | "network" | "online-choice" | "online-signup" | "online-signin" | "account" | "password" | "privacy" | "finish">("welcome");
   const [progress, setProgress] = useState(0);
   
   // Region & Keyboard
   const [region, setRegion] = useState("Deep Sea Sector Alpha");
   const [keyboardLayout, setKeyboardLayout] = useState("US QWERTY");
   
-  // Account
+  // Account (local)
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [accountError, setAccountError] = useState("");
+  
+  // Online account
+  const [email, setEmail] = useState("");
+  const [onlinePassword, setOnlinePassword] = useState("");
+  const [onlineUsername, setOnlineUsername] = useState("");
+  const [onlineError, setOnlineError] = useState("");
+  const [isOnlineLoading, setIsOnlineLoading] = useState(false);
+  const { signUp, signIn, isDevMode } = useOnlineAccount();
   
   // Privacy
   const [telemetry, setTelemetry] = useState(true);
@@ -47,10 +56,10 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
     "Japanese Kana"
   ];
 
-  const stepIndex = ["welcome", "region", "keyboard", "network", "account", "password", "privacy", "finish"].indexOf(step);
+  const stepIndex = ["welcome", "region", "keyboard", "network", "online-choice", "online-signup", "online-signin", "account", "password", "privacy", "finish"].indexOf(step);
 
   useEffect(() => {
-    setProgress((stepIndex / 7) * 100);
+    setProgress((stepIndex / 10) * 100);
   }, [stepIndex]);
 
   useEffect(() => {
@@ -123,6 +132,109 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
     accounts.push(newAccount);
     localStorage.setItem("urbanshade_accounts", JSON.stringify(accounts));
     
+    setStep("privacy");
+  };
+
+  const handleOnlineSignup = async () => {
+    setOnlineError("");
+    
+    if (!email.trim() || !email.includes("@")) {
+      setOnlineError("Please enter a valid email address");
+      return;
+    }
+    if (!onlineUsername.trim() || onlineUsername.length < 3) {
+      setOnlineError("Username must be at least 3 characters");
+      return;
+    }
+    if (!onlinePassword || onlinePassword.length < 6) {
+      setOnlineError("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsOnlineLoading(true);
+    
+    const { error } = await signUp(email, onlinePassword, onlineUsername);
+    
+    setIsOnlineLoading(false);
+
+    if (error) {
+      setOnlineError(error.message);
+      return;
+    }
+
+    // Set username for local account too
+    setUsername(onlineUsername);
+    setPassword("");
+    
+    // Save local account with online link
+    const accounts = JSON.parse(localStorage.getItem("urbanshade_accounts") || "[]");
+    const newAccount = {
+      id: Date.now().toString(),
+      username: onlineUsername.trim(),
+      password: "",
+      name: onlineUsername.trim(),
+      role: "Operator",
+      clearance: 3,
+      avatar: null,
+      isOnline: true,
+      email: email,
+      createdAt: new Date().toISOString()
+    };
+    accounts.push(newAccount);
+    localStorage.setItem("urbanshade_accounts", JSON.stringify(accounts));
+    
+    toast.success("Online account created! Check your email to confirm.");
+    setStep("privacy");
+  };
+
+  const handleOnlineSignin = async () => {
+    setOnlineError("");
+    
+    if (!email.trim() || !email.includes("@")) {
+      setOnlineError("Please enter a valid email address");
+      return;
+    }
+    if (!onlinePassword) {
+      setOnlineError("Please enter your password");
+      return;
+    }
+
+    setIsOnlineLoading(true);
+    
+    const { data, error } = await signIn(email, onlinePassword);
+    
+    setIsOnlineLoading(false);
+
+    if (error) {
+      setOnlineError(error.message);
+      return;
+    }
+
+    // Get username from profile or email
+    const displayName = data.user?.user_metadata?.username || email.split("@")[0];
+    setUsername(displayName);
+    
+    // Save local account with online link
+    const accounts = JSON.parse(localStorage.getItem("urbanshade_accounts") || "[]");
+    const existingOnline = accounts.find((a: any) => a.email === email);
+    if (!existingOnline) {
+      const newAccount = {
+        id: Date.now().toString(),
+        username: displayName,
+        password: "",
+        name: displayName,
+        role: "Operator",
+        clearance: 3,
+        avatar: null,
+        isOnline: true,
+        email: email,
+        createdAt: new Date().toISOString()
+      };
+      accounts.push(newAccount);
+      localStorage.setItem("urbanshade_accounts", JSON.stringify(accounts));
+    }
+    
+    toast.success("Signed in successfully!");
     setStep("privacy");
   };
 
@@ -355,10 +467,229 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
                   Back
                 </button>
                 <button
-                  onClick={() => setStep("account")}
+                  onClick={() => isDevMode ? setStep("account") : setStep("online-choice")}
                   className="px-8 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 font-bold transition-all flex items-center gap-2"
                 >
                   Next <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Online Account Choice - Only shown if not in Dev Mode */}
+          {step === "online-choice" && (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-3 mb-2">
+                <Cloud className="w-6 h-6 text-cyan-400" />
+                <h1 className="text-2xl font-bold text-cyan-400">Connect Your Account</h1>
+              </div>
+              <p className="text-cyan-600 text-sm mb-6">Would you like to use an online account?</p>
+              
+              <div className="space-y-4 mb-6">
+                {/* Online Account Option */}
+                <button
+                  onClick={() => setStep("online-signup")}
+                  className="w-full p-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl text-left transition-all hover:border-cyan-400 hover:bg-cyan-500/20 group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center shrink-0">
+                      <Cloud className="w-6 h-6 text-cyan-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-cyan-300 font-bold text-lg mb-1">Use Online Account</div>
+                      <div className="text-slate-400 text-sm mb-2">Sync your settings across devices. Sign in anywhere.</div>
+                      <div className="flex gap-2 flex-wrap">
+                        <span className="text-xs bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded">Cloud Sync</span>
+                        <span className="text-xs bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded">Backup</span>
+                        <span className="text-xs bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded">Multi-device</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-cyan-600 group-hover:text-cyan-400 transition-colors" />
+                  </div>
+                </button>
+
+                {/* Already have account */}
+                <button
+                  onClick={() => setStep("online-signin")}
+                  className="w-full p-4 bg-slate-800/50 border border-slate-600/30 rounded-lg text-left transition-all hover:border-cyan-500/30 hover:bg-slate-800 text-sm"
+                >
+                  <span className="text-slate-400">Already have an account? </span>
+                  <span className="text-cyan-400 font-semibold">Sign in</span>
+                </button>
+
+                {/* Local Account Option */}
+                <button
+                  onClick={() => setStep("account")}
+                  className="w-full p-6 bg-slate-800/50 border border-slate-600/30 rounded-xl text-left transition-all hover:border-slate-500 group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-slate-700/50 flex items-center justify-center shrink-0">
+                      <Monitor className="w-6 h-6 text-slate-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-slate-300 font-bold text-lg mb-1">Use Local Account</div>
+                      <div className="text-slate-500 text-sm mb-2">Stay offline. Your data remains on this device only.</div>
+                      <div className="flex gap-2 flex-wrap">
+                        <span className="text-xs bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded">Offline</span>
+                        <span className="text-xs bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded">Private</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep("network")}
+                  className="px-6 py-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Online Signup */}
+          {step === "online-signup" && (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-3 mb-2">
+                <Cloud className="w-6 h-6 text-cyan-400" />
+                <h1 className="text-2xl font-bold text-cyan-400">Create Online Account</h1>
+              </div>
+              <p className="text-cyan-600 text-sm mb-6">Sign up for cloud sync</p>
+              
+              <div className="bg-slate-800/50 border border-cyan-500/20 rounded-lg p-6 mb-6 space-y-4">
+                <div>
+                  <label className="block text-xs text-cyan-600 mb-2 font-mono">USERNAME</label>
+                  <input
+                    type="text"
+                    value={onlineUsername}
+                    onChange={(e) => setOnlineUsername(e.target.value)}
+                    placeholder="Choose a username"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-cyan-300 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors"
+                    autoFocus
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs text-cyan-600 mb-2 font-mono">EMAIL</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-cyan-300 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors"
+                  />
+                </div>
+                
+                <div className="relative">
+                  <label className="block text-xs text-cyan-600 mb-2 font-mono">PASSWORD</label>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={onlinePassword}
+                    onChange={(e) => setOnlinePassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-cyan-300 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-8 text-slate-500 hover:text-cyan-400"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                
+                {onlineError && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    {onlineError}
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-500">
+                  ⚠️ Note: You may need to confirm your email before signing in.
+                </p>
+              </div>
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep("online-choice")}
+                  className="px-6 py-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleOnlineSignup}
+                  disabled={isOnlineLoading}
+                  className="px-8 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isOnlineLoading ? "Creating..." : "Create Account"} <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Online Signin */}
+          {step === "online-signin" && (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-3 mb-2">
+                <Cloud className="w-6 h-6 text-cyan-400" />
+                <h1 className="text-2xl font-bold text-cyan-400">Sign In</h1>
+              </div>
+              <p className="text-cyan-600 text-sm mb-6">Sign in to your online account</p>
+              
+              <div className="bg-slate-800/50 border border-cyan-500/20 rounded-lg p-6 mb-6 space-y-4">
+                <div>
+                  <label className="block text-xs text-cyan-600 mb-2 font-mono">EMAIL</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-cyan-300 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors"
+                    autoFocus
+                  />
+                </div>
+                
+                <div className="relative">
+                  <label className="block text-xs text-cyan-600 mb-2 font-mono">PASSWORD</label>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={onlinePassword}
+                    onChange={(e) => setOnlinePassword(e.target.value)}
+                    placeholder="Your password"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-cyan-300 placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition-colors pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-8 text-slate-500 hover:text-cyan-400"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                
+                {onlineError && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    {onlineError}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep("online-choice")}
+                  className="px-6 py-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleOnlineSignin}
+                  disabled={isOnlineLoading}
+                  className="px-8 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isOnlineLoading ? "Signing in..." : "Sign In"} <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -395,7 +726,7 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
 
               <div className="flex justify-between">
                 <button
-                  onClick={() => setStep("network")}
+                  onClick={() => isDevMode ? setStep("network") : setStep("online-choice")}
                   className="px-6 py-2 text-slate-400 hover:text-white transition-colors"
                 >
                   Back

@@ -6,8 +6,11 @@ import { WindowManager } from "./WindowManager";
 import { RecoveryMode } from "./RecoveryMode";
 import { ContextMenu, getDesktopMenuItems } from "./ContextMenu";
 import { AltTabSwitcher } from "./AltTabSwitcher";
+import { DesktopSwitcher } from "./DesktopSwitcher";
 import { actionDispatcher } from "@/lib/actionDispatcher";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useMultipleDesktops } from "@/hooks/useMultipleDesktops";
+import { useOnlineAccount } from "@/hooks/useOnlineAccount";
 import { FileText, Database, Activity, Radio, FileBox, AlertTriangle, Terminal, Users, Wifi, Cpu, Mail, Globe, Music, Camera, Shield, MapPin, BookOpen, Zap, Wind, Calculator as CalcIcon, Lock, FileWarning, Grid3x3, ShoppingBag, StickyNote, Palette, Volume2, CloudRain, Clock as ClockIcon, Calendar, Newspaper, Key, HardDrive, FileArchive, FileText as PdfIcon, Sheet, Presentation, Video, Image, Mic, Gamepad2, MessageSquare, VideoIcon, MailOpen, FolderUp, TerminalSquare, Network, HardDrive as DiskIcon, Settings as SettingsIcon, Activity as PerformanceIcon, ScanLine, Languages, BookOpenCheck, Globe2, MapPinned, Telescope, Beaker, Calculator as PhysicsIcon, Fingerprint, Lock as EncryptionIcon, KeyRound, Download, Puzzle, Skull, Monitor, Package } from "lucide-react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
@@ -42,6 +45,22 @@ export const Desktop = ({
   const [windows, setWindows] = useState<Array<{ id: string; app: App; zIndex: number; minimized?: boolean }>>([]);
   const [nextZIndex, setNextZIndex] = useState(100);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  
+  // Multiple desktops
+  const { 
+    desktops, 
+    activeDesktopId, 
+    switchDesktop, 
+    createDesktop, 
+    deleteDesktop, 
+    renameDesktop,
+    moveWindowToDesktop,
+    switchToNextDesktop,
+    switchToPreviousDesktop 
+  } = useMultipleDesktops();
+  
+  // Online account sync
+  const { isOnlineMode, isDevMode, syncSettings } = useOnlineAccount();
   
   // Load background gradient from settings
   const [bgGradient, setBgGradient] = useState(() => {
@@ -727,6 +746,16 @@ export const Desktop = ({
         onReboot={onReboot}
         onShutdown={onShutdown}
         onLogout={onLogout}
+      />
+
+      {/* Desktop Switcher */}
+      <DesktopSwitcher
+        desktops={desktops}
+        activeDesktopId={activeDesktopId}
+        onSwitchDesktop={switchDesktop}
+        onCreateDesktop={createDesktop}
+        onDeleteDesktop={deleteDesktop}
+        onRenameDesktop={renameDesktop}
       />
 
       {/* Taskbar */}
