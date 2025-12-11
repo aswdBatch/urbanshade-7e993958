@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Waves, Shield, Globe, Keyboard, Wifi, User, Lock, Eye, EyeOff, Settings, Check, ChevronRight, Terminal, Cloud, Monitor } from "lucide-react";
+import { Waves, Shield, Globe, Keyboard, Wifi, User, Lock, Eye, EyeOff, Settings, Check, ChevronRight, Terminal, Cloud, Monitor, HelpCircle, Mail, RefreshCw, Download, Loader2 } from "lucide-react";
 import { useOnlineAccount } from "@/hooks/useOnlineAccount";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface OOBEScreenProps {
   onComplete: () => void;
 }
 
 export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
-  const [step, setStep] = useState<"welcome" | "region" | "keyboard" | "network" | "online-choice" | "online-signup" | "online-signin" | "account" | "password" | "privacy" | "finish">("welcome");
+  const [step, setStep] = useState<"welcome" | "region" | "keyboard" | "network" | "online-choice" | "online-signup" | "email-verify" | "online-signin" | "import-settings" | "account" | "password" | "privacy" | "finish">("welcome");
   const [progress, setProgress] = useState(0);
   
   // Region & Keyboard
@@ -28,7 +29,10 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
   const [onlineUsername, setOnlineUsername] = useState("");
   const [onlineError, setOnlineError] = useState("");
   const [isOnlineLoading, setIsOnlineLoading] = useState(false);
-  const { signUp, signIn, isDevMode } = useOnlineAccount();
+  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+  const [hasCloudSettings, setHasCloudSettings] = useState(false);
+  const [isLoadingCloudSettings, setIsLoadingCloudSettings] = useState(false);
+  const { signUp, signIn, isDevMode, loadCloudSettings, checkForConflict } = useOnlineAccount();
   
   // Privacy
   const [telemetry, setTelemetry] = useState(true);
@@ -56,10 +60,10 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
     "Japanese Kana"
   ];
 
-  const stepIndex = ["welcome", "region", "keyboard", "network", "online-choice", "online-signup", "online-signin", "account", "password", "privacy", "finish"].indexOf(step);
+  const stepIndex = ["welcome", "region", "keyboard", "network", "online-choice", "online-signup", "email-verify", "online-signin", "import-settings", "account", "password", "privacy", "finish"].indexOf(step);
 
   useEffect(() => {
-    setProgress((stepIndex / 10) * 100);
+    setProgress((stepIndex / 12) * 100);
   }, [stepIndex]);
 
   useEffect(() => {
@@ -184,7 +188,55 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
     localStorage.setItem("urbanshade_accounts", JSON.stringify(accounts));
     
     toast.success("Online account created! Check your email to confirm.");
-    setStep("privacy");
+    setStep("email-verify");
+  };
+
+  // Check email verification status
+  const checkEmailVerification = async () => {
+    setIsCheckingVerification(true);
+    setOnlineError("");
+    
+    try {
+      const { data, error } = await signIn(email, onlinePassword);
+      
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          setOnlineError("Email not yet verified. Please check your inbox and spam folder.");
+        } else {
+          setOnlineError(error.message);
+        }
+        setIsCheckingVerification(false);
+        return;
+      }
+      
+      // Success - email was verified
+      const displayName = data.user?.user_metadata?.username || onlineUsername || email.split("@")[0];
+      setUsername(displayName);
+      
+      // Save local account with online link
+      const accounts = JSON.parse(localStorage.getItem("urbanshade_accounts") || "[]");
+      const newAccount = {
+        id: Date.now().toString(),
+        username: displayName,
+        password: "",
+        name: displayName,
+        role: "Operator",
+        clearance: 3,
+        avatar: null,
+        isOnline: true,
+        email: email,
+        createdAt: new Date().toISOString()
+      };
+      accounts.push(newAccount);
+      localStorage.setItem("urbanshade_accounts", JSON.stringify(accounts));
+      
+      toast.success("Email verified! Account ready.");
+      setStep("privacy");
+    } catch (err) {
+      setOnlineError("Verification check failed. Try again.");
+    }
+    
+    setIsCheckingVerification(false);
   };
 
   const handleOnlineSignin = async () => {
@@ -234,6 +286,26 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
       localStorage.setItem("urbanshade_accounts", JSON.stringify(accounts));
     }
     
+    // Check if there are cloud settings to import
+    const conflict = await checkForConflict();
+    if (conflict?.cloudSettings) {
+      setHasCloudSettings(true);
+      setStep("import-settings");
+    } else {
+      toast.success("Signed in successfully!");
+      setStep("privacy");
+    }
+  };
+
+  const handleImportCloudSettings = async () => {
+    setIsLoadingCloudSettings(true);
+    await loadCloudSettings();
+    setIsLoadingCloudSettings(false);
+    toast.success("Settings imported from cloud!");
+    setStep("privacy");
+  };
+
+  const handleSkipImport = () => {
     toast.success("Signed in successfully!");
     setStep("privacy");
   };
@@ -625,6 +697,82 @@ export const OOBEScreen = ({ onComplete }: OOBEScreenProps) => {
                   className="px-8 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 font-bold transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {isOnlineLoading ? "Creating..." : "Create Account"} <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Email Verification Step */}
+          {step === "email-verify" && (
+            <div className="animate-fade-in text-center">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                <Mail className="w-10 h-10 text-cyan-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-cyan-400 mb-2">Check Your Email</h1>
+              <p className="text-cyan-600 text-sm mb-6">We sent a verification link to <span className="text-cyan-400">{email}</span></p>
+              
+              <div className="bg-slate-800/50 border border-cyan-500/20 rounded-lg p-6 mb-6 text-left space-y-4">
+                <p className="text-slate-300 text-sm">
+                  Click the link in your email to verify your account, then click "I've Verified" below.
+                </p>
+                
+                {onlineError && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    {onlineError}
+                  </div>
+                )}
+                
+                <button
+                  onClick={checkEmailVerification}
+                  disabled={isCheckingVerification}
+                  className="w-full py-3 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isCheckingVerification ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {isCheckingVerification ? "Checking..." : "I've Verified My Email"}
+                </button>
+                
+                <p className="text-xs text-slate-500 text-center">
+                  Didn't receive it? Check your spam folder or wait a moment and try again.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setStep("online-signup")}
+                className="text-slate-400 hover:text-white transition-colors text-sm"
+              >
+                ← Back to signup
+              </button>
+            </div>
+          )}
+
+          {/* Import Settings Step */}
+          {step === "import-settings" && (
+            <div className="animate-fade-in text-center">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                <Download className="w-10 h-10 text-cyan-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-cyan-400 mb-2">Import Your Settings?</h1>
+              <p className="text-cyan-600 text-sm mb-6">We found settings from your cloud account</p>
+              
+              <div className="bg-slate-800/50 border border-cyan-500/20 rounded-lg p-6 mb-6 space-y-4">
+                <p className="text-slate-300 text-sm text-left">
+                  Your online account has saved settings including desktop icons, installed apps, and theme preferences.
+                </p>
+                
+                <button
+                  onClick={handleImportCloudSettings}
+                  disabled={isLoadingCloudSettings}
+                  className="w-full py-3 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLoadingCloudSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {isLoadingCloudSettings ? "Importing..." : "Import Cloud Settings"}
+                </button>
+                
+                <button
+                  onClick={handleSkipImport}
+                  className="w-full py-2 text-slate-400 hover:text-white transition-colors text-sm"
+                >
+                  Start Fresh Instead
                 </button>
               </div>
             </div>

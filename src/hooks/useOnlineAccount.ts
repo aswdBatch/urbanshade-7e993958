@@ -192,27 +192,40 @@ export const useOnlineAccount = () => {
   };
 
   // Sync settings to cloud (only if online mode and not dev mode)
-  const syncSettings = async () => {
+  const syncSettings = async (preferences?: { desktopIcons: boolean; installedApps: boolean; theme: boolean; systemSettings: boolean }) => {
     if (isDevMode || !isOnlineMode || !user) return;
 
+    // Default to sync all if no preferences provided
+    const prefs = preferences || { desktopIcons: true, installedApps: true, theme: true, systemSettings: true };
+
     try {
-      const settings = {
+      const settings: Record<string, any> = {
         install_type: localStorage.getItem("urbanshade_install_type"),
-        desktop_icons: JSON.parse(localStorage.getItem("urbanshade_desktop_icons") || "[]"),
-        installed_apps: JSON.parse(localStorage.getItem("urbanshade_installed_apps") || "[]"),
-        system_settings: {
-          theme: localStorage.getItem("settings_theme"),
-          bg_gradient_start: localStorage.getItem("settings_bg_gradient_start"),
-          bg_gradient_end: localStorage.getItem("settings_bg_gradient_end"),
-          animations: localStorage.getItem("settings_animations"),
-          device_name: localStorage.getItem("settings_device_name"),
-          accent_color: localStorage.getItem("settings_accent_color"),
-          font_family: localStorage.getItem("settings_font_family"),
-          glass_opacity: localStorage.getItem("settings_glass_opacity"),
-          brightness: localStorage.getItem("settings_brightness"),
-          night_light: localStorage.getItem("settings_night_light"),
-        }
       };
+
+      if (prefs.desktopIcons) {
+        settings.desktop_icons = JSON.parse(localStorage.getItem("urbanshade_desktop_icons") || "[]");
+      }
+      if (prefs.installedApps) {
+        settings.installed_apps = JSON.parse(localStorage.getItem("urbanshade_installed_apps") || "[]");
+      }
+      if (prefs.theme || prefs.systemSettings) {
+        settings.system_settings = {};
+        if (prefs.theme) {
+          settings.system_settings.theme = localStorage.getItem("settings_theme");
+          settings.system_settings.bg_gradient_start = localStorage.getItem("settings_bg_gradient_start");
+          settings.system_settings.bg_gradient_end = localStorage.getItem("settings_bg_gradient_end");
+          settings.system_settings.accent_color = localStorage.getItem("settings_accent_color");
+          settings.system_settings.font_family = localStorage.getItem("settings_font_family");
+          settings.system_settings.glass_opacity = localStorage.getItem("settings_glass_opacity");
+        }
+        if (prefs.systemSettings) {
+          settings.system_settings.animations = localStorage.getItem("settings_animations");
+          settings.system_settings.device_name = localStorage.getItem("settings_device_name");
+          settings.system_settings.brightness = localStorage.getItem("settings_brightness");
+          settings.system_settings.night_light = localStorage.getItem("settings_night_light");
+        }
+      }
 
       const { error } = await supabase
         .from("synced_settings")
@@ -226,9 +239,46 @@ export const useOnlineAccount = () => {
 
       if (error) {
         console.error("Sync error:", error);
+        throw error;
       }
     } catch (err) {
       console.error("Failed to sync settings:", err);
+      throw err;
+    }
+  };
+
+  // Check for conflicts between local and cloud settings
+  const checkForConflict = async () => {
+    if (isDevMode || !isOnlineMode || !user) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from("synced_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      // Check if cloud has data that differs from local
+      const localIcons = localStorage.getItem("urbanshade_desktop_icons");
+      const cloudIcons = JSON.stringify(data.desktop_icons || []);
+      
+      const localApps = localStorage.getItem("urbanshade_installed_apps");
+      const cloudApps = JSON.stringify(data.installed_apps || []);
+      
+      const hasConflict = 
+        (localIcons && localIcons !== "[]" && cloudIcons !== "[]" && localIcons !== cloudIcons) ||
+        (localApps && localApps !== "[]" && cloudApps !== "[]" && localApps !== cloudApps);
+
+      if (hasConflict) {
+        return { hasConflict: true, cloudSettings: data };
+      }
+      
+      return { hasConflict: false, cloudSettings: data };
+    } catch (err) {
+      console.error("Failed to check for conflicts:", err);
+      return null;
     }
   };
 
@@ -280,6 +330,7 @@ export const useOnlineAccount = () => {
     disableOnlineMode,
     syncSettings,
     loadCloudSettings,
+    checkForConflict,
     fetchProfile,
     updateProfile,
     deleteAccount

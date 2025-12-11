@@ -14,15 +14,18 @@ import { toast } from "sonner";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { useOnlineAccount } from "@/hooks/useOnlineAccount";
 import { useAutoSync } from "@/hooks/useAutoSync";
+import { SyncSettingsPanel } from "@/components/SyncSettingsPanel";
+import { SyncConflictDialog } from "@/components/SyncConflictDialog";
 
 export const Settings = ({ onUpdate }: { onUpdate?: () => void }) => {
   const { settings, updateSetting, resetToDefaults } = useSystemSettings();
   const { user, profile, isOnlineMode, signOut, updateProfile, loadCloudSettings } = useOnlineAccount();
-  const { lastSyncTime, isSyncing, manualSync, isEnabled: syncEnabled } = useAutoSync();
+  const { lastSyncTime, isSyncing, manualSync, isEnabled: syncEnabled, hasConflict, cloudSettings, resolveConflict } = useAutoSync();
   
   const [selectedCategory, setSelectedCategory] = useState("system");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFactoryResetDialog, setShowFactoryResetDialog] = useState(false);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [showAddAccountDialog, setShowAddAccountDialog] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [newAccountUsername, setNewAccountUsername] = useState("");
@@ -938,48 +941,6 @@ export const Settings = ({ onUpdate }: { onUpdate?: () => void }) => {
                     </div>
                   </div>
 
-                  {/* Sync Status */}
-                  <div className="p-4 bg-black/20 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Cloud Sync</span>
-                      <span className={`text-xs px-2 py-1 rounded ${syncEnabled ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                        {syncEnabled ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mb-3">
-                      Last synced: {lastSyncTime ? lastSyncTime.toLocaleTimeString() : 'Never'}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => manualSync()}
-                        disabled={isSyncing}
-                      >
-                        {isSyncing ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                        )}
-                        Sync Now
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={async () => {
-                          await loadCloudSettings();
-                          toast.success("Settings loaded from cloud");
-                          setTimeout(() => window.location.reload(), 1000);
-                        }}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Load from Cloud
-                      </Button>
-                    </div>
-                  </div>
-
                   {/* Sign Out */}
                   <Button 
                     variant="outline" 
@@ -992,6 +953,13 @@ export const Settings = ({ onUpdate }: { onUpdate?: () => void }) => {
                 </div>
               </Card>
             )}
+
+            {/* Cloud Sync Settings - New Enhanced Panel */}
+            <SyncSettingsPanel 
+              isOnlineMode={isOnlineMode}
+              user={user}
+              onManualSync={manualSync}
+            />
 
             <Card className="p-6">
               <h3 className="font-semibold mb-4">Your account</h3>
@@ -1574,6 +1542,22 @@ export const Settings = ({ onUpdate }: { onUpdate?: () => void }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Sync Conflict Dialog */}
+      <SyncConflictDialog
+        open={showConflictDialog || hasConflict}
+        onClose={() => setShowConflictDialog(false)}
+        cloudSettings={cloudSettings}
+        onUseLocal={() => resolveConflict("local")}
+        onUseCloud={() => {
+          resolveConflict("cloud");
+          setTimeout(() => window.location.reload(), 500);
+        }}
+        onMerge={() => {
+          resolveConflict("merge");
+          setTimeout(() => window.location.reload(), 500);
+        }}
+      />
     </>
   );
 };
