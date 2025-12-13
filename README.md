@@ -75,6 +75,9 @@ Urbanshade OS is a browser-first operating system project focused on a playful, 
 - Visual and UX polish across windows, taskbar, start menu, and animations.
 - Ongoing bug fixes and quality-of-life updates (username display in Start Menu, copyright year, consistent versioning).
 
+This has been being built by me, and some help from my friends and lovable.dev, since January 27, 2025. This has been my largest project to date. It was private until around
+september, when since then its been public for everyone to contribiute and use, which is right around when V2.0 dropped.
+
 ## Where to find the full changelog
 The full changelog can be found in the site!
 Thank you for checking out Urbanshade OS - A *"passion project"*! contributors and community involvement are welcome!
