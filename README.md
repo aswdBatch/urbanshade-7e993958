@@ -1,7 +1,11 @@
-completely unrelated:
-Just beat Nine Circles in gd
-les go
+current sittuation
 ---
+
+### so.
+the mass update comlpetely fricked the Supabase integration... Whoops \_( :) )_/
+Ima try to fix it. Not really, im sick, and christmass is in like a week, so... no updates probably.
+
+I fked up, i know and im sorry.
 
 # Welcome to the Urbanshade OS (website)!
 ---
