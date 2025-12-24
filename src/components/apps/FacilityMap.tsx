@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { MapPin, AlertTriangle, CheckCircle, XCircle, Users, Crosshair, ZoomIn, ZoomOut, RotateCcw, Move, Download, Skull, Shield, FlaskConical, HardHat } from "lucide-react";
+import { MapPin, AlertTriangle, CheckCircle, XCircle, Users, Crosshair, ZoomIn, ZoomOut, RotateCcw, Move, Download, Skull, Shield, FlaskConical, HardHat, Zap, Radio, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 type ZoneType = "light" | "heavy" | "entrance" | "surface";
+type TeamId = "classD" | "scientists" | "foundation" | "chaos";
 
 interface Room {
   id: string;
@@ -37,7 +38,27 @@ export const FacilityMap = () => {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [showScanner, setShowScanner] = useState(false);
+  const [accessTier, setAccessTier] = useState(1);
+  const [auxPower, setAuxPower] = useState(85);
+  const maxPower = 110;
   const mapRef = useRef<HTMLDivElement>(null);
+
+  // Scanner state
+  const [zoneEnabled, setZoneEnabled] = useState<Record<ZoneType, boolean>>({
+    surface: true,
+    light: true,
+    entrance: true,
+    heavy: true,
+  });
+  const [teamDetection, setTeamDetection] = useState<Record<TeamId, boolean>>({
+    classD: true,
+    scientists: true,
+    foundation: false,
+    chaos: true,
+  });
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanSuspended, setScanSuspended] = useState(true);
 
   const [personnel, setPersonnel] = useState<PersonnelStats>({
     scps: 1,
@@ -47,12 +68,12 @@ export const FacilityMap = () => {
     chaos: 0,
   });
 
-  // Zone definitions
-  const zones: { id: ZoneType; name: string; color: string }[] = [
-    { id: "light", name: "Light Containment Zone", color: "bg-yellow-600" },
-    { id: "heavy", name: "Heavy Containment Zone", color: "bg-red-600" },
-    { id: "entrance", name: "Entrance Zone", color: "bg-blue-600" },
-    { id: "surface", name: "Surface Zone", color: "bg-green-600" },
+  // Zone definitions with SCP:SL colors
+  const zones: { id: ZoneType; name: string; color: string; bgColor: string }[] = [
+    { id: "surface", name: "Surface Zone", color: "text-green-400", bgColor: "bg-green-600" },
+    { id: "light", name: "Light Containment", color: "text-yellow-400", bgColor: "bg-yellow-600" },
+    { id: "heavy", name: "Heavy Containment", color: "text-red-400", bgColor: "bg-red-600" },
+    { id: "entrance", name: "Entrance Zone", color: "text-blue-400", bgColor: "bg-blue-600" },
   ];
 
   // Rooms per zone (SCP:SL inspired)
@@ -120,6 +141,14 @@ export const FacilityMap = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Power regeneration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAuxPower(p => Math.min(maxPower, p + 1));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleZoom = (delta: number) => {
     setZoom(prev => Math.max(0.5, Math.min(2, prev + delta)));
   };
@@ -142,11 +171,20 @@ export const FacilityMap = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "operational": return "border-[#00ff88]/60 bg-[#00ff88]/10";
+      case "operational": return "border-green-500/60 bg-green-500/10";
       case "warning": return "border-yellow-500/60 bg-yellow-500/20";
       case "critical": return "border-red-500/60 bg-red-500/20 animate-pulse";
       case "offline": return "border-gray-500/40 bg-gray-500/10";
       default: return "border-gray-500/40 bg-gray-500/10";
+    }
+  };
+
+  const getZoneColor = (zone: ZoneType) => {
+    switch (zone) {
+      case "surface": return "border-green-500/60";
+      case "light": return "border-yellow-500/60";
+      case "heavy": return "border-red-500/60";
+      case "entrance": return "border-blue-500/60";
     }
   };
 
@@ -161,15 +199,13 @@ export const FacilityMap = () => {
     }
   };
 
-  const handleExport = () => {
-    const blob = new Blob([JSON.stringify(rooms, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `facility-map-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Map exported!");
+  const getTeamColor = (team: TeamId) => {
+    switch (team) {
+      case "classD": return "text-orange-400";
+      case "scientists": return "text-white";
+      case "foundation": return "text-blue-400";
+      case "chaos": return "text-green-400";
+    }
   };
 
   const renderConnections = () => {
@@ -183,6 +219,7 @@ export const FacilityMap = () => {
           const key = [room.id, connRoom.id].sort().join("-");
           if (!processed.has(key)) {
             processed.add(key);
+            const zoneData = zones.find(z => z.id === selectedZone);
             connections.push(
               <line
                 key={key}
@@ -190,7 +227,10 @@ export const FacilityMap = () => {
                 y1={room.y + room.height / 2}
                 x2={connRoom.x + connRoom.width / 2}
                 y2={connRoom.y + connRoom.height / 2}
-                stroke="rgba(0, 255, 136, 0.2)"
+                stroke={selectedZone === "heavy" ? "rgba(239, 68, 68, 0.3)" : 
+                        selectedZone === "light" ? "rgba(234, 179, 8, 0.3)" :
+                        selectedZone === "entrance" ? "rgba(59, 130, 246, 0.3)" :
+                        "rgba(34, 197, 94, 0.3)"}
                 strokeWidth="3"
               />
             );
@@ -201,41 +241,156 @@ export const FacilityMap = () => {
     return connections;
   };
 
+  // Breach Scanner View
+  if (showScanner) {
+    return (
+      <div className="h-full bg-[#0a0a12] font-mono flex flex-col">
+        {/* Header */}
+        <div className="border-b border-cyan-500/20 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Radio className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-lg font-bold text-cyan-400">BREACH SCANNER</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${scanSuspended ? "text-yellow-400" : "text-green-400"}`}>
+              {scanSuspended ? "SCAN SEQUENCE SUSPENDED" : "SCANNING..."}
+            </span>
+            <button 
+              onClick={() => setShowScanner(false)}
+              className="px-3 py-1 text-xs text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20"
+            >
+              RETURN TO MAP <kbd className="ml-1 px-1 bg-black/50 rounded">Space</kbd>
+            </button>
+          </div>
+        </div>
+
+        {/* Scanner Content */}
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="max-w-4xl mx-auto grid grid-cols-2 gap-6">
+            {/* Zone Selection */}
+            <div className="space-y-4">
+              <div className="text-xs text-cyan-600 uppercase tracking-wider">Select Zones to Scan</div>
+              <div className="grid grid-cols-2 gap-2">
+                {zones.map(zone => (
+                  <button
+                    key={zone.id}
+                    onClick={() => setZoneEnabled(z => ({ ...z, [zone.id]: !z[zone.id] }))}
+                    className={`p-3 border text-xs font-bold transition-colors ${
+                      zoneEnabled[zone.id] 
+                        ? `${zone.bgColor} text-white border-white/20` 
+                        : "bg-gray-800/50 text-gray-400 border-gray-600/30"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{zone.name}</span>
+                      <span>{zoneEnabled[zone.id] ? "ON" : "OFF"}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Team Detection */}
+            <div className="space-y-4">
+              <div className="text-xs text-cyan-600 uppercase tracking-wider">Select Teams to Detect</div>
+              <div className="space-y-2">
+                {(["classD", "scientists", "foundation", "chaos"] as TeamId[]).map(team => (
+                  <label
+                    key={team}
+                    className="flex items-center gap-3 p-3 bg-[#1a1a2e] border border-cyan-500/20 cursor-pointer hover:bg-[#252536]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={teamDetection[team]}
+                      onChange={() => setTeamDetection(t => ({ ...t, [team]: !t[team] }))}
+                      className="w-4 h-4"
+                    />
+                    <span className={`text-sm font-medium ${getTeamColor(team)}`}>
+                      {team === "classD" ? "Class-D Personnel" :
+                       team === "scientists" ? "Scientists" :
+                       team === "foundation" ? "Foundation Personnel" : "Chaos Insurgency"}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Status */}
+        <div className="border-t border-cyan-500/20 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div>
+              <div className="text-[10px] text-cyan-600">ACCESS TIER {accessTier}</div>
+              <div className="w-24 h-2 bg-black border border-cyan-500/30 mt-1">
+                <div className="h-full bg-cyan-500/60" style={{ width: `${(accessTier / 5) * 100}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-cyan-600 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> AUXILIARY POWER {auxPower} / {maxPower}
+              </div>
+              <div className="w-32 h-2 bg-black border border-cyan-500/30 mt-1">
+                <div className={`h-full ${auxPower < 30 ? "bg-red-500/60" : "bg-cyan-500/60"}`} style={{ width: `${(auxPower / maxPower) * 100}%` }} />
+              </div>
+            </div>
+          </div>
+          <Button 
+            onClick={() => {
+              setScanSuspended(false);
+              setIsScanning(true);
+              setTimeout(() => {
+                setIsScanning(false);
+                setScanSuspended(true);
+                toast.success("Scan complete");
+              }, 3000);
+            }}
+            disabled={isScanning || auxPower < 50}
+            className="bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30"
+          >
+            {isScanning ? "SCANNING..." : "INITIATE SCAN (50 AP)"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full bg-[#0a0a12]">
+    <div className="flex h-full bg-[#0a0a12] font-mono">
       {/* Map View */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Stats Panel - Top */}
-        <div className="bg-[#0d0d18] border-b border-[#1a1a2e] px-4 py-3 flex items-center gap-8">
+        <div className="bg-[#0d0d18] border-b border-cyan-500/20 px-4 py-3 flex items-center gap-8">
           <div className="flex items-center gap-2 text-xs">
             <Skull className="w-4 h-4 text-red-500" />
-            <span className="text-muted-foreground">SCPs:</span>
+            <span className="text-gray-500">SCPs:</span>
             <span className="font-bold text-red-400">{personnel.scps}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Shield className="w-4 h-4 text-blue-400" />
-            <span className="text-muted-foreground">MTF & Guards:</span>
+            <span className="text-gray-500">MTF:</span>
             <span className="font-bold text-blue-400">{personnel.mtf}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <FlaskConical className="w-4 h-4 text-white" />
-            <span className="text-muted-foreground">Scientists:</span>
+            <span className="text-gray-500">Scientists:</span>
             <span className="font-bold text-white">{personnel.scientists}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <HardHat className="w-4 h-4 text-orange-400" />
-            <span className="text-muted-foreground">Class-D:</span>
+            <span className="text-gray-500">Class-D:</span>
             <span className="font-bold text-orange-400">{personnel.classD}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Users className="w-4 h-4 text-green-400" />
-            <span className="text-muted-foreground">Chaos Insurgents:</span>
+            <span className="text-gray-500">Chaos:</span>
             <span className="font-bold text-green-400">{personnel.chaos}</span>
           </div>
           
           <div className="ml-auto flex gap-1">
-            <Button size="sm" variant="ghost" onClick={handleExport} className="h-7 px-2">
-              <Download className="w-3 h-3" />
+            <Button size="sm" variant="ghost" onClick={() => setShowScanner(true)} className="h-7 px-2 text-cyan-400 hover:text-cyan-300">
+              <Radio className="w-3 h-3 mr-1" />
+              <span className="text-xs">SCANNER</span>
             </Button>
             <Button size="sm" variant="ghost" onClick={() => handleZoom(0.1)} className="h-7 px-2">
               <ZoomIn className="w-3 h-3" />
@@ -269,13 +424,13 @@ export const FacilityMap = () => {
           >
             {/* Grid */}
             <div 
-              className="absolute opacity-20 pointer-events-none"
+              className="absolute opacity-10 pointer-events-none"
               style={{
                 width: '800px',
                 height: '600px',
                 backgroundImage: `
-                  linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px)
+                  linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px)
                 `,
                 backgroundSize: '40px 40px'
               }}
@@ -291,7 +446,7 @@ export const FacilityMap = () => {
               <div
                 key={room.id}
                 onClick={() => setSelectedRoom(room)}
-                className={`absolute cursor-pointer transition-all border-2 ${getStatusColor(room.status)} ${
+                className={`absolute cursor-pointer transition-all border-2 ${getStatusColor(room.status)} ${getZoneColor(room.zone)} ${
                   selectedRoom?.id === room.id ? "ring-2 ring-white/50" : ""
                 } hover:brightness-125`}
                 style={{
@@ -324,7 +479,7 @@ export const FacilityMap = () => {
                 transform: 'translate(-50%, -50%)'
               }}
             >
-              <Crosshair className="w-6 h-6 text-[#00ff88] drop-shadow-lg" />
+              <Crosshair className="w-6 h-6 text-green-400 drop-shadow-lg" />
             </div>
 
             {/* Entity indicator when escaped */}
@@ -343,40 +498,60 @@ export const FacilityMap = () => {
           </div>
 
           {/* Legend */}
-          <div className="absolute bottom-4 left-4 bg-[#0d0d18]/90 border border-[#1a1a2e] p-3 text-[10px] space-y-1.5 z-10">
+          <div className="absolute bottom-4 left-4 bg-[#0d0d18]/90 border border-cyan-500/20 p-3 text-[10px] space-y-1.5 z-10">
             <div className="font-bold text-xs mb-2 text-white/80">LEGEND</div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 border border-[#00ff88]/60 bg-[#00ff88]/10" />
-              <span className="text-muted-foreground">Operational</span>
+              <div className="w-3 h-3 border border-green-500/60 bg-green-500/10" />
+              <span className="text-gray-400">Operational</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 border border-yellow-500/60 bg-yellow-500/20" />
-              <span className="text-muted-foreground">Warning</span>
+              <span className="text-gray-400">Warning</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 border border-red-500/60 bg-red-500/20" />
-              <span className="text-muted-foreground">Critical</span>
+              <span className="text-gray-400">Critical</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 border border-gray-500/40 bg-gray-500/10" />
-              <span className="text-muted-foreground">Offline</span>
+              <span className="text-gray-400">Offline</span>
             </div>
           </div>
 
           {/* Controls hint */}
-          <div className="absolute bottom-4 right-4 bg-[#0d0d18]/90 border border-[#1a1a2e] px-3 py-2 text-[10px] text-muted-foreground z-10">
+          <div className="absolute bottom-4 right-4 bg-[#0d0d18]/90 border border-cyan-500/20 px-3 py-2 text-[10px] text-gray-400 z-10">
             <Move className="w-3 h-3 inline mr-1" />
             Shift+Drag to pan
+          </div>
+        </div>
+
+        {/* Bottom Status Bar */}
+        <div className="bg-[#0d0d18] border-t border-cyan-500/20 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div>
+              <div className="text-[10px] text-cyan-600">ACCESS TIER {accessTier}</div>
+              <div className="w-24 h-1.5 bg-black border border-cyan-500/30 mt-1">
+                <div className="h-full bg-cyan-500/60" style={{ width: `${(accessTier / 5) * 100}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-cyan-600 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> AUXILIARY POWER {auxPower} / {maxPower}
+              </div>
+              <div className="w-32 h-1.5 bg-black border border-cyan-500/30 mt-1">
+                <div className={`h-full ${auxPower < 30 ? "bg-red-500/60" : "bg-cyan-500/60"}`} style={{ width: `${(auxPower / maxPower) * 100}%` }} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Right Sidebar - Zones */}
-      <div className="w-56 border-l border-[#1a1a2e] bg-[#0d0d18] flex flex-col">
-        <div className="p-4 border-b border-[#1a1a2e]">
+      <div className="w-56 border-l border-cyan-500/20 bg-[#0d0d18] flex flex-col">
+        <div className="p-4 border-b border-cyan-500/20">
           <div className="flex items-center gap-2 mb-3">
-            <MapPin className="w-4 h-4 text-[#00ff88]" />
-            <h2 className="font-bold text-sm">FACILITY ZONES</h2>
+            <MapPin className="w-4 h-4 text-cyan-400" />
+            <h2 className="font-bold text-sm text-white">FACILITY ZONES</h2>
           </div>
           
           <div className="space-y-2">
@@ -386,8 +561,8 @@ export const FacilityMap = () => {
                 onClick={() => { setSelectedZone(zone.id); setSelectedRoom(null); }}
                 className={`w-full text-left p-3 rounded transition-all text-xs font-medium ${
                   selectedZone === zone.id 
-                    ? `${zone.color} text-white` 
-                    : "bg-[#1a1a2e] hover:bg-[#252536] text-muted-foreground"
+                    ? `${zone.bgColor} text-white` 
+                    : "bg-[#1a1a2e] hover:bg-[#252536] text-gray-400"
                 }`}
               >
                 {zone.name}
@@ -402,16 +577,16 @@ export const FacilityMap = () => {
             {selectedRoom ? (
               <div className="space-y-4">
                 <div>
-                  <div className="font-bold text-sm">{selectedRoom.name}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  <div className="font-bold text-sm text-white">{selectedRoom.name}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">
                     {zones.find(z => z.id === selectedRoom.zone)?.name}
                   </div>
                 </div>
 
-                <div className="p-3 bg-[#1a1a2e] rounded">
-                  <div className="text-[10px] text-muted-foreground mb-1">STATUS</div>
+                <div className="p-3 bg-[#1a1a2e] rounded border border-cyan-500/20">
+                  <div className="text-[10px] text-gray-500 mb-1">STATUS</div>
                   <div className={`font-bold uppercase text-sm ${
-                    selectedRoom.status === "operational" ? "text-[#00ff88]" :
+                    selectedRoom.status === "operational" ? "text-green-400" :
                     selectedRoom.status === "warning" ? "text-yellow-400" :
                     selectedRoom.status === "critical" ? "text-red-400" :
                     "text-gray-400"
@@ -421,16 +596,16 @@ export const FacilityMap = () => {
                 </div>
 
                 {selectedRoom.special && (
-                  <div className="p-3 bg-[#1a1a2e] rounded">
-                    <div className="text-[10px] text-muted-foreground mb-1">TYPE</div>
-                    <div className="font-bold uppercase text-sm text-primary">
+                  <div className="p-3 bg-[#1a1a2e] rounded border border-cyan-500/20">
+                    <div className="text-[10px] text-gray-500 mb-1">TYPE</div>
+                    <div className="font-bold uppercase text-sm text-cyan-400">
                       {selectedRoom.special}
                     </div>
                   </div>
                 )}
 
-                <div className="p-3 bg-[#1a1a2e] rounded">
-                  <div className="text-[10px] text-muted-foreground mb-2">CONNECTED TO</div>
+                <div className="p-3 bg-[#1a1a2e] rounded border border-cyan-500/20">
+                  <div className="text-[10px] text-gray-500 mb-2">CONNECTED TO</div>
                   <div className="space-y-1">
                     {selectedRoom.connections.map(connId => {
                       const connRoom = rooms.find(r => r.id === connId);
@@ -438,7 +613,7 @@ export const FacilityMap = () => {
                         <button
                           key={connId}
                           onClick={() => setSelectedRoom(connRoom)}
-                          className="w-full text-left text-[10px] p-2 bg-black/30 rounded hover:bg-primary/20 transition-colors"
+                          className="w-full text-left text-[10px] p-2 bg-black/30 rounded hover:bg-cyan-500/20 transition-colors text-cyan-400"
                         >
                           {connRoom.shortName}
                         </button>
@@ -457,7 +632,7 @@ export const FacilityMap = () => {
                 )}
               </div>
             ) : (
-              <div className="text-center text-muted-foreground text-xs py-8">
+              <div className="text-center text-gray-500 text-xs py-8">
                 Select a room to view details
               </div>
             )}

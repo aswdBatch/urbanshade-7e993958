@@ -113,7 +113,15 @@ export const UserSelectionScreen = ({ onLogin, onShutdown, onRestart }: UserSele
 
     setLoading(true);
 
+    // Timeout after 10 seconds
+    const timeoutId = setTimeout(() => {
+      setError("Authentication timed out. Please try again.");
+      setLoading(false);
+      setPassword("");
+    }, 10000);
+
     setTimeout(() => {
+      clearTimeout(timeoutId);
       if (password === user.password) {
         // Store current logged in user
         localStorage.setItem("urbanshade_current_user", JSON.stringify(user));

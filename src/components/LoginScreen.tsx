@@ -22,8 +22,15 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
 
     setLoading(true);
 
+    // Timeout after 10 seconds
+    const timeoutId = setTimeout(() => {
+      setError("Authentication timed out. Please try again.");
+      setLoading(false);
+    }, 10000);
+
     // Check against stored admin credentials
     setTimeout(() => {
+      clearTimeout(timeoutId);
       const adminData = localStorage.getItem("urbanshade_admin");
       
       if (adminData) {
